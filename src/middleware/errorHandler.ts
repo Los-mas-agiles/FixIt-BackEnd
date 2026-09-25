@@ -23,6 +23,10 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
         details: err.issues.map((issue) => ({ campo: issue.path.join('.'), mensaje: issue.message })),
       },
     }
+  } else if (err?.code === 'P2002') {
+    // Violación de campo único en Prisma (ej. dos altas simultáneas con el mismo email)
+    status = 400
+    body = { error: { code: 'VALIDACION', message: 'Ya existe un registro con esos datos' } }
   } else if (err?.type === 'entity.parse.failed') {
     // JSON mal formado en el body
     status = 400

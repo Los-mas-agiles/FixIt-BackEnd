@@ -5,7 +5,9 @@ import cors from 'cors'
 import { env } from './config/env.js'
 import { errorHandler, notFound } from './middleware/errorHandler.js'
 import { securityHeaders } from './middleware/securityHeaders.js'
+import { authRouter } from './modules/auth/routes.js'
 import { healthRouter } from './modules/health/routes.js'
+import { usuariosRouter } from './modules/usuarios/routes.js'
 
 const app = express()
 
@@ -16,6 +18,8 @@ app.use(express.json({ limit: '100kb' }))
 
 const api = express.Router()
 api.use('/health', healthRouter)
+api.use('/auth', authRouter)
+api.use('/usuarios', usuariosRouter)
 app.use('/api', api)
 
 app.use(notFound)
