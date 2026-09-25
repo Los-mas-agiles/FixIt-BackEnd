@@ -121,6 +121,7 @@ Toda consulta queda **limitada automáticamente al edificio del usuario** (sale 
 | Método | Ruta | Roles | Respuesta |
 |---|---|---|---|
 | GET | `/health` | público | `{ ok: true }` |
+| GET | `/health/db` | público | `{ ok: true, db: 'up' }` — diagnóstico: confirma que la API llega a la base de datos |
 
 ### Autenticación (HU6)
 

@@ -1,0 +1,143 @@
+// Modelo de datos de FixIt. Ver docs/GUIA_BACKEND.md (sección 3).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Rol {
+  residente
+  mantenimiento
+  administrador
+}
+
+enum TipoIncidencia {
+  plomeria
+  electricidad
+  ascensor
+  limpieza
+  seguridad
+  otros
+}
+
+enum Prioridad {
+  alta
+  media
+  baja
+}
+
+enum EstadoIncidencia {
+  pendiente
+  en_proceso
+  resuelto
+}
+
+enum ClasificadoPor {
+  ia
+  fallback
+  manual
+}
+
+model Edificio {
+  id          String       @id @default(uuid()) @db.Uuid
+  nombre      String
+  direccion   String?
+  usuarios    Usuario[]
+  incidencias Incidencia[]
+  creadoEn    DateTime     @default(now())
+
+  @@map("edificios")
+}
+
+model Usuario {
+  id             String            @id @default(uuid()) @db.Uuid
+  nombre         String
+  email          String            @unique
+  passwordHash   String
+  rol            Rol
+  edificioId     String            @db.Uuid
+  edificio       Edificio          @relation(fields: [edificioId], references: [id])
+  activo         Boolean           @default(true)
+  reportadas     Incidencia[]      @relation("Residente")
+  asignadas      Incidencia[]      @relation("Tecnico")
+  cambios        HistorialEstado[]
+  notificaciones Notificacion[]
+  suscripciones  SuscripcionPush[]
+  creadoEn       DateTime          @default(now())
+
+  @@index([edificioId, rol])
+  @@map("usuarios")
+}
+
+model Incidencia {
+  id                 String            @id @default(uuid()) @db.Uuid
+  edificioId         String            @db.Uuid
+  edificio           Edificio          @relation(fields: [edificioId], references: [id])
+  residenteId        String            @db.Uuid
+  residente          Usuario           @relation("Residente", fields: [residenteId], references: [id])
+  descripcion        String
+  fotoPath           String? // ruta dentro del bucket, NO la URL
+  tipo               TipoIncidencia
+  prioridad          Prioridad
+  clasificadoPor     ClasificadoPor
+  tipoIA             TipoIncidencia? // lo que dijo la IA originalmente (para medir precisión)
+  prioridadIA        Prioridad?
+  estado             EstadoIncidencia  @default(pendiente)
+  asignadoAId        String?           @db.Uuid
+  asignadoA          Usuario?          @relation("Tecnico", fields: [asignadoAId], references: [id])
+  fechaCreacion      DateTime          @default(now())
+  fechaInicioProceso DateTime?
+  fechaResolucion    DateTime?
+  historial          HistorialEstado[]
+  notificaciones     Notificacion[]
+
+  @@index([edificioId, estado])
+  @@index([residenteId])
+  @@index([asignadoAId, estado])
+  @@map("incidencias")
+}
+
+model HistorialEstado {
+  id             String            @id @default(uuid()) @db.Uuid
+  incidenciaId   String            @db.Uuid
+  incidencia     Incidencia        @relation(fields: [incidenciaId], references: [id], onDelete: Cascade)
+  estadoAnterior EstadoIncidencia? // null = creación
+  estadoNuevo    EstadoIncidencia
+  usuarioId      String            @db.Uuid
+  usuario        Usuario           @relation(fields: [usuarioId], references: [id])
+  fecha          DateTime          @default(now())
+
+  @@index([incidenciaId])
+  @@index([fecha])
+  @@map("historial_estados")
+}
+
+model Notificacion {
+  id           String     @id @default(uuid()) @db.Uuid
+  usuarioId    String     @db.Uuid
+  usuario      Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  incidenciaId String     @db.Uuid
+  incidencia   Incidencia @relation(fields: [incidenciaId], references: [id], onDelete: Cascade)
+  mensaje      String
+  leida        Boolean    @default(false)
+  fecha        DateTime   @default(now())
+
+  @@index([usuarioId, leida])
+  @@map("notificaciones")
+}
+
+model SuscripcionPush {
+  id        String   @id @default(uuid()) @db.Uuid
+  usuarioId String   @db.Uuid
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  creadoEn  DateTime @default(now())
+
+  @@map("suscripciones_push")
+}

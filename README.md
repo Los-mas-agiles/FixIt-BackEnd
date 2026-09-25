@@ -34,8 +34,8 @@ Proyecto del curso de **Ágiles (1ASI570)** — UPC, Ingeniería de Software, 20
 ```bash
 npm install
 cp .env.example .env        # completar los valores (ver abajo)
-npx prisma migrate dev      # crea las tablas
-npx prisma db seed          # edificios y cuentas de demo
+npm run db:migrate          # crea/actualiza las tablas en Supabase
+npm run db:seed             # edificios y cuentas de demo
 npm run dev                 # http://localhost:3000/api/health
 ```
 
@@ -62,13 +62,14 @@ npm run dev                 # http://localhost:3000/api/health
 | Comando | Qué hace |
 |---|---|
 | `npm run dev` | API en modo desarrollo con recarga automática |
-| `npm run build` | Compila TypeScript |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Verificación de tipos |
 | `npm test` | Tests con Vitest |
-| `npx prisma migrate dev` | Crea/aplica migraciones en local |
-| `npx prisma db seed` | Carga datos de demo |
-| `npx prisma studio` | Explorador visual de la base de datos |
+| `npm run db:migrate` | Crea una migración a partir de `prisma/schema.prisma` y la aplica |
+| `npm run db:deploy` | Aplica migraciones pendientes (sin crear nuevas) |
+| `npm run db:seed` | Carga datos de demo (idempotente) |
+| `npm run db:studio` | Explorador visual de la base de datos |
+| `npm run db:generate` | Regenera el cliente de Prisma (se hace solo en `npm install`) |
 
 ## Estructura
 
