@@ -3,11 +3,7 @@
 import 'dotenv/config'
 import { z } from 'zod'
 
-// Una variable vacía en el .env (ej. "VAPID_PUBLIC_KEY=") cuenta como no definida
-const opcional = z.preprocess(
-  (valor) => (typeof valor === 'string' && valor.trim() === '' ? undefined : valor),
-  z.string().trim().optional(),
-)
+const opcional = z.string().trim().optional()
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -35,11 +31,17 @@ const schema = z.object({
   VAPID_SUBJECT: opcional,
 })
 
-const resultado = schema.safeParse(process.env)
+// Una variable vacía (ej. "PORT=" en el .env o un valor vacío en Vercel) cuenta como NO definida,
+// así se aplica su valor por defecto en vez de fallar o quedar como "".
+const definidas = Object.fromEntries(
+  Object.entries(process.env).filter(([, valor]) => valor !== undefined && valor.trim() !== ''),
+)
+
+const resultado = schema.safeParse(definidas)
 
 if (!resultado.success) {
   const detalle = resultado.error.issues.map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`).join('\n')
-  throw new Error(`Variables de entorno inválidas:\n${detalle}\nRevisa tu archivo .env (ver .env.example).`)
+  throw new Error(`Variables de entorno inválidas:\n${detalle}\nRevisa tu archivo .env (ver .env.example) o las Environment Variables de Vercel.`)
 }
 
 export const env = resultado.data

@@ -18,6 +18,14 @@ describe('config/env', () => {
     expect(env.GEMINI_API_KEY).toBeUndefined()
   })
 
+  it('usa los valores por defecto si las variables numéricas o de texto vienen vacías', async () => {
+    const env = await cargarEnv({ PORT: '', WIP_LIMITE_TECNICO: ' ', JWT_EXPIRES_IN: '', GEMINI_MODEL: '' })
+    expect(env.PORT).toBe(3000)
+    expect(env.WIP_LIMITE_TECNICO).toBe(3)
+    expect(env.JWT_EXPIRES_IN).toBe('7d')
+    expect(env.GEMINI_MODEL).toBe('gemini-3.8-flash')
+  })
+
   it('separa CORS_ORIGINS por comas', async () => {
     const env = await cargarEnv({ CORS_ORIGINS: 'http://localhost:5173, https://fixit-web.vercel.app' })
     expect(env.CORS_ORIGINS).toEqual(['http://localhost:5173', 'https://fixit-web.vercel.app'])
