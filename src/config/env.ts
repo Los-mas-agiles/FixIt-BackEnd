@@ -19,7 +19,8 @@ const schema = z.object({
 
   CORS_ORIGINS: z
     .string()
-    .default('http://localhost:5173')
+    // localhost:5173 = npm run dev · localhost:4173 = npm run preview (para probar la PWA)
+    .default('http://localhost:5173,http://localhost:4173,https://fix-it-front-end*.vercel.app')
     .transform((valor) => valor.split(',').map((origen) => origen.trim()).filter(Boolean)),
   WIP_LIMITE_TECNICO: z.coerce.number().int().positive().default(3),
 

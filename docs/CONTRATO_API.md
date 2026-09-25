@@ -3,7 +3,8 @@
 Este documento es el **acuerdo entre frontend y backend**. El frontend programa contra esto; el backend lo cumple.
 Si algo tiene que cambiar, **primero se cambia aquí** (con PR en el repo de backend) y se avisa al equipo de frontend. Nunca al revés.
 
-- **Base URL:** `VITE_API_URL` (ej. `http://localhost:3000/api` en local, `https://fixit-api.vercel.app/api` en producción)
+- **Base URL:** `VITE_API_URL` → producción: **`https://fix-it-back-end.vercel.app/api`** · local (si corres el backend): `http://localhost:3000/api`
+- **CORS:** la API acepta peticiones desde `http://localhost:5173` (`npm run dev`), `http://localhost:4173` (`npm run preview`) y `https://fix-it-front-end*.vercel.app` (producción y previews del frontend en Vercel). Si el proyecto del frontend en Vercel tiene otro nombre, avisar para agregarlo.
 - **Formato:** JSON (salvo la creación de incidencias, que es `multipart/form-data`)
 - **Fechas:** siempre strings ISO 8601 en UTC (`"2026-10-05T14:30:00.000Z"`). El frontend las formatea a hora de Lima.
 - **IDs:** strings UUID.
@@ -223,6 +224,8 @@ Contraseña de todas: `FixIt2026!`
 
 El segundo edificio sirve para probar el aislamiento: un usuario de San Borja **nunca** debe ver incidencias de Los Olivos.
 
+**Datos de demo:** el seed crea 12 incidencias en Los Olivos (7 resueltas, 2 en proceso, 3 pendientes, con fechas de los últimos 13 días, historial y avisos) y 1 en San Borja. Así el tablero, el detalle y la campanita tienen datos desde el primer día.
+
 ---
 
 ## 4. Historial de cambios de este contrato
@@ -233,3 +236,4 @@ El segundo edificio sirve para probar el aislamiento: un usuario de San Borja **
 | 2026-09-25 | `GET /health/db`. Reglas detalladas de transición, concurrencia y asignación (Fase 3) |
 | 2026-09-25 | Detalle de la corrección manual y significado de `clasificadoPor` (Fase 4) |
 | 2026-09-25 | Avisos al técnico al ser asignado, reglas de suscripción push (Fase 5) |
+| 2026-09-26 | URL real de producción, orígenes CORS permitidos y datos de demo |
