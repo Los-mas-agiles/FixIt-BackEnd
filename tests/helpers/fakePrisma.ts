@@ -96,6 +96,7 @@ export function crearIncidenciaDePrueba(datos: {
   descripcion?: string
   estado?: string
   prioridad?: string
+  clasificadoPor?: string
   asignadoAEmail?: string
   fotoPath?: string
   fechaCreacion?: Date
@@ -107,11 +108,11 @@ export function crearIncidenciaDePrueba(datos: {
     residenteId: residente.id,
     descripcion: datos.descripcion ?? 'Fuga de agua en el baño del departamento',
     fotoPath: datos.fotoPath ?? null,
-    tipo: 'plomeria',
+    tipo: datos.clasificadoPor === 'fallback' ? 'otros' : 'plomeria',
     prioridad: datos.prioridad ?? 'media',
-    clasificadoPor: 'ia',
-    tipoIA: 'plomeria',
-    prioridadIA: datos.prioridad ?? 'media',
+    clasificadoPor: datos.clasificadoPor ?? 'ia',
+    tipoIA: datos.clasificadoPor === 'fallback' ? null : 'plomeria',
+    prioridadIA: datos.clasificadoPor === 'fallback' ? null : (datos.prioridad ?? 'media'),
     estado: datos.estado ?? 'pendiente',
     asignadoAId: datos.asignadoAEmail ? buscarUsuario(datos.asignadoAEmail).id : null,
     fechaCreacion: datos.fechaCreacion ?? new Date(),
@@ -149,7 +150,12 @@ function conRelaciones(i: IncidenciaFake) {
 }
 
 function cumpleIncidencia(i: IncidenciaFake, where: Record<string, unknown> = {}) {
-  return Object.entries(where).every(([campo, valor]) => i[campo as keyof IncidenciaFake] === valor)
+  return Object.entries(where).every(([campo, valor]) => {
+    const actual = i[campo as keyof IncidenciaFake]
+    // Soporta { gte: Date } como Prisma
+    if (valor && typeof valor === 'object' && 'gte' in valor) return actual instanceof Date && actual >= (valor as { gte: Date }).gte
+    return actual === valor
+  })
 }
 
 export function buscarUsuario(email: string): UsuarioFake {
@@ -218,10 +224,11 @@ export const prisma = {
       historial.push({ id: randomUUID(), incidenciaId: incidencia.id, fecha: incidencia.fechaCreacion, ...nested.create })
       return conRelaciones(incidencia)
     },
-    async findMany({ where, take }: { where?: Record<string, unknown>; take?: number }) {
+    async findMany({ where, take, orderBy }: { where?: Record<string, unknown>; take?: number; orderBy?: { fechaCreacion?: 'asc' | 'desc' } }) {
+      const signo = orderBy?.fechaCreacion === 'asc' ? 1 : -1
       return incidencias
         .filter((i) => cumpleIncidencia(i, where))
-        .sort((a, b) => b.fechaCreacion.getTime() - a.fechaCreacion.getTime())
+        .sort((a, b) => signo * (a.fechaCreacion.getTime() - b.fechaCreacion.getTime()))
         .slice(0, take)
         .map(conRelaciones)
     },

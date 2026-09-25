@@ -1,8 +1,21 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth, requireRol, usuarioActual } from '../../middleware/auth.js'
-import { asignarSchema, cambiarEstadoSchema, crearIncidenciaSchema, listarIncidenciasSchema } from './schemas.js'
-import { asignarTecnico, cambiarEstado, crearIncidencia, listarIncidencias, obtenerIncidencia } from './service.js'
+import {
+  asignarSchema,
+  cambiarEstadoSchema,
+  corregirClasificacionSchema,
+  crearIncidenciaSchema,
+  listarIncidenciasSchema,
+} from './schemas.js'
+import {
+  asignarTecnico,
+  cambiarEstado,
+  corregirClasificacion,
+  crearIncidencia,
+  listarIncidencias,
+  obtenerIncidencia,
+} from './service.js'
 
 export const MAX_TAMANO_FOTO = 4 * 1024 * 1024 // 4 MB (Vercel rechaza bodies > 4.5 MB)
 
@@ -44,4 +57,10 @@ incidenciasRouter.patch<{ id: string }>('/:id/estado', requireRol('mantenimiento
 incidenciasRouter.patch<{ id: string }>('/:id/asignacion', requireRol('administrador'), async (req, res) => {
   const { tecnicoId } = asignarSchema.parse(req.body)
   res.json(await asignarTecnico(usuarioActual(req), req.params.id, tecnicoId))
+})
+
+// PATCH /incidencias/:id/clasificacion  { tipo?, prioridad? }
+incidenciasRouter.patch<{ id: string }>('/:id/clasificacion', requireRol('administrador'), async (req, res) => {
+  const datos = corregirClasificacionSchema.parse(req.body)
+  res.json(await corregirClasificacion(usuarioActual(req), req.params.id, datos))
 })

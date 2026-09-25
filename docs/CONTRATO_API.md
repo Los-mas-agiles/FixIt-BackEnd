@@ -173,7 +173,8 @@ Reglas que aplica el backend (el frontend solo muestra el error si ocurre):
   - Una incidencia `resuelto` no se puede reasignar → `409 TRANSICION_INVALIDA`.
 - **Límite de WIP:** un técnico no puede tener más de **3** incidencias en `en_proceso` (configurable en el backend). Si se excede → `409 LIMITE_WIP` con mensaje "Ya tienes 3 incidencias en proceso. Resuelve una antes de tomar otra." (o, si la mueve un admin, "El técnico ya tiene 3 incidencias en proceso. Espera a que resuelva una o asigna otro técnico.").
 - **Fechas** (`fechaInicioProceso`, `fechaResolucion`) las pone el servidor. El frontend nunca las envía.
-- **Clasificación manual:** cambia `clasificadoPor` a `'manual'`.
+- **Clasificación manual** (`PATCH /incidencias/:id/clasificacion`, solo A): envía `tipo`, `prioridad` o ambos (si no envía ninguno → `400 VALIDACION`). Cambia `clasificadoPor` a `'manual'`. Se permite en cualquier estado.
+- **`clasificadoPor`:** `'ia'` = lo decidió Gemini · `'fallback'` = la IA no respondió a tiempo y se usó `otros`/`media` (conviene que el admin la revise) · `'manual'` = la corrigió un admin. El frontend puede mostrar un indicador discreto para cada caso.
 
 ### KPIs (HU5)
 
@@ -225,3 +226,4 @@ El segundo edificio sirve para probar el aislamiento: un usuario de San Borja **
 |---|---|
 | 2026-09-24 | Versión inicial |
 | 2026-09-25 | `GET /health/db`. Reglas detalladas de transición, concurrencia y asignación (Fase 3) |
+| 2026-09-25 | Detalle de la corrección manual y significado de `clasificadoPor` (Fase 4) |

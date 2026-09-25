@@ -51,7 +51,8 @@ npm run dev                 # http://localhost:3000/api/health
 | `JWT_SECRET` | Cadena larga y aleatoria para firmar tokens |
 | `JWT_EXPIRES_IN` | Duración del token (`7d`) |
 | `GEMINI_API_KEY` | API key de Gemini |
-| `GEMINI_MODEL` | Modelo de Gemini a usar |
+| `GEMINI_MODEL` | Modelo principal de Gemini (por defecto `gemini-3.5-flash-lite`) |
+| `GEMINI_MODEL_RESPALDO` | Modelo que se usa si el principal está saturado (por defecto `gemini-3.1-flash-lite`) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Claves de Web Push (`npx web-push generate-vapid-keys`) |
 | `VAPID_SUBJECT` | `mailto:` de contacto para Web Push |
 | `WIP_LIMITE_TECNICO` | Máximo de incidencias en proceso por técnico (`3`) |
@@ -69,6 +70,7 @@ npm run dev                 # http://localhost:3000/api/health
 | `npm run db:deploy` | Aplica migraciones pendientes (sin crear nuevas) |
 | `npm run db:seed` | Carga datos de demo (idempotente) |
 | `npm run db:studio` | Explorador visual de la base de datos |
+| `npm run ia:evaluar` | Mide la precisión de la IA con 30 casos etiquetados → `docs/EVALUACION_IA.md` |
 | `npm run db:generate` | Regenera el cliente de Prisma (se hace solo en `npm install`) |
 
 ## Estructura
@@ -98,7 +100,7 @@ Todas con la contraseña `FixIt2026!` — ver la tabla completa en [`docs/CONTRA
 - [x] Fase 1 — HU6 Login con roles
 - [x] Fase 2 — HU1 Reporte de incidencias con foto
 - [x] Fase 3 — HU3 Tablero Kanban (transiciones, asignación, límite de WIP)
-- [ ] Fase 4 — HU2 Clasificación con IA
+- [x] Fase 4 — HU2 Clasificación con IA
 - [ ] Fase 5 — HU4 Notificaciones
 - [ ] Fase 6 — HU5 KPIs y CFD
 - [ ] Fase 7 — Piloto y cierre

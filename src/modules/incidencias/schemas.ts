@@ -23,6 +23,17 @@ export const cambiarEstadoSchema = z.object({
   estado: estadoSchema,
 })
 
+export const tipoSchema = z.enum(['plomeria', 'electricidad', 'ascensor', 'limpieza', 'seguridad', 'otros'])
+
+export const corregirClasificacionSchema = z
+  .object({
+    tipo: tipoSchema.optional(),
+    prioridad: prioridadSchema.optional(),
+  })
+  .refine((datos) => datos.tipo !== undefined || datos.prioridad !== undefined, {
+    message: 'Envía al menos el tipo o la prioridad',
+  })
+
 export const asignarSchema = z.object({
   tecnicoId: z.uuid('El técnico no es válido').nullable(),
 })

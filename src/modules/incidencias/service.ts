@@ -6,9 +6,10 @@ import { env } from '../../config/env.js'
 import { ApiError } from '../../lib/errors.js'
 import { prisma } from '../../lib/prisma.js'
 import { borrarFoto, subirFoto, urlsFirmadas } from '../../lib/storage.js'
-import type { EstadoIncidencia, Incidencia, IncidenciaDetalle } from '../../types/models.js'
+import type { EstadoIncidencia, Incidencia, IncidenciaDetalle, Prioridad, TipoIncidencia } from '../../types/models.js'
 import type { UsuarioAutenticado } from '../../types/express.js'
 import { clasificar } from './clasificador.js'
+import { programarReclasificacion } from './reclasificacion.js'
 import { aIncidencia, aIncidenciaDetalle, INCLUDE_INCIDENCIA, INCLUDE_INCIDENCIA_DETALLE } from './mapper.js'
 import { idIncidenciaSchema, type listarIncidenciasSchema } from './schemas.js'
 
@@ -62,6 +63,8 @@ export async function crearIncidencia(
       },
       include: INCLUDE_INCIDENCIA,
     })
+    // Si la IA no respondió a tiempo, se reintentará sola en segundo plano (sin hacer esperar al residente)
+    if (clasificacion.clasificadoPor === 'fallback') programarReclasificacion(usuario.edificioId)
     return aIncidencia(creada, await urlDe(fotoPath))
   } catch (error) {
     if (fotoPath) await borrarFoto(fotoPath) // no dejar fotos huérfanas en el bucket
@@ -85,6 +88,9 @@ export async function listarIncidencias(
     orderBy: { fechaCreacion: 'desc' },
     take: MAX_RESULTADOS,
   })
+
+  // Cada vez que se consulta el tablero, se reintenta (en segundo plano) clasificar las que quedaron en fallback
+  if (incidencias.some((i) => i.clasificadoPor === 'fallback')) programarReclasificacion(usuario.edificioId)
 
   const urls = await urlsFirmadas(incidencias.flatMap((i) => (i.fotoPath ? [i.fotoPath] : [])))
   return incidencias.map((i) => aIncidencia(i, i.fotoPath ? (urls.get(i.fotoPath) ?? null) : null))
@@ -214,6 +220,30 @@ export async function asignarTecnico(
 
     await tx.incidencia.update({ where: { id }, data: { asignadoAId: tecnicoId } })
   })
+
+  return incidenciaCompleta(id)
+}
+
+/**
+ * Corrección manual de la clasificación (solo admin). Marca clasificadoPor = 'manual'
+ * y conserva tipoIA / prioridadIA originales para poder medir la precisión de la IA.
+ */
+export async function corregirClasificacion(
+  usuario: UsuarioAutenticado,
+  id: string,
+  datos: { tipo?: TipoIncidencia; prioridad?: Prioridad },
+): Promise<Incidencia> {
+  validarId(id)
+
+  const { count } = await prisma.incidencia.updateMany({
+    where: { id, edificioId: usuario.edificioId },
+    data: {
+      ...(datos.tipo ? { tipo: datos.tipo } : {}),
+      ...(datos.prioridad ? { prioridad: datos.prioridad } : {}),
+      clasificadoPor: 'manual',
+    },
+  })
+  if (count === 0) throw noEncontrada()
 
   return incidenciaCompleta(id)
 }

@@ -1,7 +1,10 @@
 // Variables de entorno validadas al arrancar: si falta algo obligatorio, la API no levanta
 // y el error dice exactamente qué variable revisar.
-import 'dotenv/config'
+import dotenv from 'dotenv'
 import { z } from 'zod'
+
+// En los tests NO se lee el .env: así nunca tocan la BD real ni gastan cuota de Gemini
+if (process.env['NODE_ENV'] !== 'test') dotenv.config({ quiet: true })
 
 const opcional = z.string().trim().optional()
 
@@ -25,7 +28,8 @@ const schema = z.object({
   SUPABASE_SECRET_KEY: opcional,
   SUPABASE_BUCKET: z.string().default('fotos'),
   GEMINI_API_KEY: opcional,
-  GEMINI_MODEL: z.string().default('gemini-3.8-flash'),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash-lite'),
+  GEMINI_MODEL_RESPALDO: z.string().default('gemini-3.1-flash-lite'),
   VAPID_PUBLIC_KEY: opcional,
   VAPID_PRIVATE_KEY: opcional,
   VAPID_SUBJECT: opcional,

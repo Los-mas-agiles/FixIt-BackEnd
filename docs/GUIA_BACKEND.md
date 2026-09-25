@@ -24,7 +24,7 @@ El backend es **el único que toma decisiones de negocio** y el único que toca 
 | jsonwebtoken + bcryptjs | Login con JWT y hash de contraseñas |
 | multer | Recibir la foto (`multipart/form-data`) en memoria |
 | @supabase/supabase-js | Subir fotos y generar URLs firmadas (con la *secret key*, solo en el servidor) |
-| @google/genai | Clasificación con Gemini |
+| `fetch` nativo (API REST de Gemini) | Clasificación con IA, sin SDK ni dependencias extra |
 | web-push | Notificaciones push (VAPID) |
 | Vitest + Supertest | Tests |
 | tsx | Correr TS en desarrollo |
@@ -205,11 +205,13 @@ const SIGUIENTE: Record<EstadoIncidencia, EstadoIncidencia | null> = {
 
 ### 4.3 Clasificación con IA
 
-- Se ejecuta **dentro** de `POST /incidencias`, antes de guardar. Timeout de **8 segundos** con `AbortController`.
+- Se ejecuta **dentro** de `POST /incidencias`, antes de guardar. Timeout **total** de **8 segundos** (`AbortSignal.timeout`).
+- **Dos modelos:** primero `GEMINI_MODEL`; si falla por saturación (503), cuota (429), timeout o respuesta inválida y quedan ≥ 1.5 s, se reintenta con `GEMINI_MODEL_RESPALDO`. Un error no reintentable (ej. API key inválida) va directo al fallback.
 - Se usa la salida estructurada de Gemini (`responseMimeType: 'application/json'` + `responseSchema` con los enums) para que la respuesta sea un JSON válido.
 - Aun así se valida con Zod. Si la respuesta no calza, hay timeout o cualquier error → **fallback**: `tipo: 'otros'`, `prioridad: 'media'`, `clasificadoPor: 'fallback'`. Una incidencia **nunca** queda sin clasificar (Objetivo 4).
 - Se guardan también `tipoIA` / `prioridadIA` para calcular después la precisión.
-- El modelo va en la variable `GEMINI_MODEL`, para cambiarlo sin tocar código (confirmar en la Fase 4 cuál es el modelo Flash vigente del nivel gratuito).
+- Los modelos van en variables para cambiarlos sin tocar código. Medición del 2026-09-25 (nivel gratuito): `gemini-3.5-flash-lite` respondió en ~0.8 s; `gemini-3.8-flash` estaba saturado (503) y sin cuota (429); los `gemini-2.5-*` ya fueron retirados. Por eso: principal `gemini-3.5-flash-lite`, respaldo `gemini-3.1-flash-lite`.
+- **Precisión medida:** `npm run ia:evaluar` clasifica 30 descripciones etiquetadas a mano (`scripts/dataset-clasificacion.json`) y escribe el reporte en `docs/EVALUACION_IA.md`.
 
 Prompt base:
 
@@ -273,7 +275,8 @@ JWT_EXPIRES_IN=7d
 
 # IA
 GEMINI_API_KEY=
-GEMINI_MODEL=
+GEMINI_MODEL=gemini-3.5-flash-lite
+GEMINI_MODEL_RESPALDO=gemini-3.1-flash-lite
 
 # Web Push (generar con: npx web-push generate-vapid-keys)
 VAPID_PUBLIC_KEY=
