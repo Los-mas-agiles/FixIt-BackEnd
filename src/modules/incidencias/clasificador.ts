@@ -13,6 +13,8 @@ import { generarJsonGroq } from '../../lib/ia/groq.js'
 
 /** Tiempo máximo TOTAL para clasificar (incluye los reintentos con otros modelos). */
 export const TIMEOUT_CLASIFICACION_MS = 8000
+/** Máximo por modelo: si uno se cuelga, deja tiempo para que responda el siguiente de la cadena. */
+export const TIMEOUT_POR_MODELO_MS = 4000
 /** Si queda menos que esto, no vale la pena intentar con el siguiente modelo. */
 const TIEMPO_MINIMO_REINTENTO_MS = 1500
 
@@ -57,9 +59,13 @@ export function llamarModelo(m: ModeloIA, prompt: string, timeoutMs: number): Pr
  * prueba en orden los modelos de IA_MODELOS (saltando los proveedores sin API key) hasta que uno
  * responda algo válido dentro del tiempo total. Si ninguno lo logra → fallback (otros / media).
  */
-export async function clasificar(descripcion: string, opciones: { timeoutMs?: number } = {}): Promise<ResultadoClasificacion> {
+export async function clasificar(
+  descripcion: string,
+  opciones: { timeoutMs?: number; timeoutPorModeloMs?: number } = {},
+): Promise<ResultadoClasificacion> {
   const inicio = Date.now()
   const limite = inicio + (opciones.timeoutMs ?? TIMEOUT_CLASIFICACION_MS)
+  const maximoPorModelo = opciones.timeoutPorModeloMs ?? TIMEOUT_POR_MODELO_MS
   const modelos = parsearModelos(env.IA_MODELOS).filter((m) => tieneKey(m.proveedor))
   const prompt = construirPrompt(descripcion)
   const proveedoresDescartados = new Set<ProveedorIA>()
@@ -75,7 +81,9 @@ export async function clasificar(descripcion: string, opciones: { timeoutMs?: nu
     if (restante <= 0 || (i > 0 && restante < TIEMPO_MINIMO_REINTENTO_MS)) break
 
     try {
-      const texto = await llamarModelo(m, prompt, restante)
+      // El último modelo puede usar todo el tiempo que queda; los anteriores, como mucho maximoPorModelo
+      const esUltimo = modelos.slice(i + 1).every((sig) => proveedoresDescartados.has(sig.proveedor))
+      const texto = await llamarModelo(m, prompt, esUltimo ? restante : Math.min(restante, maximoPorModelo))
       const resultado = parsearRespuestaIA(texto)
       if (resultado) {
         const ms = Date.now() - inicio

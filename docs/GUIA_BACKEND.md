@@ -277,7 +277,7 @@ JWT_EXPIRES_IN=7d
 # IA
 GEMINI_API_KEY=
 GROQ_API_KEY=
-IA_MODELOS=groq:openai/gpt-oss-20b,gemini:gemini-3.5-flash-lite,gemini:gemini-3.1-flash-lite
+IA_MODELOS=gemini:gemini-3.5-flash-lite,groq:openai/gpt-oss-20b,gemini:gemini-3.1-flash-lite
 
 # Web Push (generar con: npx web-push generate-vapid-keys)
 VAPID_PUBLIC_KEY=

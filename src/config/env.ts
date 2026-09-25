@@ -31,7 +31,7 @@ const schema = z.object({
   GROQ_API_KEY: opcional,
   // Cadena de modelos de IA que se prueban EN ORDEN: "proveedor:modelo,proveedor:modelo,..."
   // Se saltan los de proveedores sin API key. Ver docs/EVALUACION_IA.md para el porqué del orden.
-  IA_MODELOS: z.string().default('groq:openai/gpt-oss-20b,gemini:gemini-3.5-flash-lite,gemini:gemini-3.1-flash-lite'),
+  IA_MODELOS: z.string().default('gemini:gemini-3.5-flash-lite,groq:openai/gpt-oss-20b,gemini:gemini-3.1-flash-lite'),
   VAPID_PUBLIC_KEY: opcional,
   VAPID_PRIVATE_KEY: opcional,
   VAPID_SUBJECT: opcional,

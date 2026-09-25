@@ -207,3 +207,19 @@ describe('parsearModelos', () => {
     ])
   })
 })
+
+describe('límite de tiempo por modelo', () => {
+  it('si el primer modelo se cuelga, se corta a los N ms y el siguiente alcanza a responder', async () => {
+    simularGemini('colgar', respuestaGroqOk('plomeria', 'alta'))
+    vi.resetModules()
+    vi.stubEnv('GEMINI_API_KEY', 'key-de-prueba')
+    vi.stubEnv('GROQ_API_KEY', 'groq-key-de-prueba')
+    vi.stubEnv('IA_MODELOS', 'gemini:gemini-3.5-flash-lite,groq:openai/gpt-oss-20b')
+    const { clasificar } = await import('../src/modules/incidencias/clasificador.js')
+
+    const inicio = Date.now()
+    const r = await clasificar('Fuga de agua', { timeoutMs: 5000, timeoutPorModeloMs: 300 })
+    expect(r).toMatchObject({ clasificadoPor: 'ia', modelo: 'groq:openai/gpt-oss-20b' })
+    expect(Date.now() - inicio).toBeLessThan(2000) // no esperó los 5 s completos por Gemini
+  })
+})
