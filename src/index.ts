@@ -2,15 +2,15 @@
 // Para correr en local se usa src/dev.ts.
 import express from 'express'
 import cors from 'cors'
-import helmet from 'helmet'
 import { env } from './config/env.js'
 import { errorHandler, notFound } from './middleware/errorHandler.js'
+import { securityHeaders } from './middleware/securityHeaders.js'
 import { healthRouter } from './modules/health/routes.js'
 
 const app = express()
 
 app.disable('x-powered-by')
-app.use(helmet())
+app.use(securityHeaders)
 app.use(cors({ origin: env.CORS_ORIGINS }))
 app.use(express.json({ limit: '100kb' }))
 
