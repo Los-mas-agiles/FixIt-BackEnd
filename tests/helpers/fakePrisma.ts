@@ -52,6 +52,38 @@ interface HistorialFake {
   fecha: Date
 }
 
+interface NotificacionFake {
+  id: string
+  usuarioId: string
+  incidenciaId: string
+  mensaje: string
+  leida: boolean
+  fecha: Date
+}
+
+interface SuscripcionFake {
+  id: string
+  usuarioId: string
+  endpoint: string
+  p256dh: string
+  auth: string
+}
+
+let notificaciones: NotificacionFake[] = []
+let suscripciones: SuscripcionFake[] = []
+
+export function todasLasNotificaciones() {
+  return notificaciones
+}
+
+export function todasLasSuscripciones() {
+  return suscripciones
+}
+
+function cumpleCampos<T extends object>(fila: T, where: Record<string, unknown> = {}) {
+  return Object.entries(where).every(([campo, valor]) => fila[campo as keyof T] === valor)
+}
+
 const edificios: EdificioFake[] = [EDIFICIO_A, EDIFICIO_B]
 let usuarios: UsuarioFake[] = []
 let incidencias: IncidenciaFake[] = []
@@ -87,6 +119,8 @@ export function reiniciarBD() {
   ]
   incidencias = []
   historial = []
+  notificaciones = []
+  suscripciones = []
   fallarProximoCreate = false
 }
 
@@ -256,6 +290,44 @@ export const prisma = {
       const fila = { id: randomUUID(), ...data }
       historial.push(fila)
       return fila
+    },
+  },
+  notificacion: {
+    async create({ data }: { data: Omit<NotificacionFake, 'id' | 'leida' | 'fecha'> & { fecha?: Date } }) {
+      const fila = { id: randomUUID(), leida: false, ...data, fecha: data.fecha ?? new Date() }
+      notificaciones.push(fila)
+      return fila
+    },
+    async findMany({ where, take }: { where?: Record<string, unknown>; take?: number }) {
+      return notificaciones
+        .filter((n) => cumpleCampos(n, where))
+        .sort((a, b) => b.fecha.getTime() - a.fecha.getTime())
+        .slice(0, take)
+    },
+    async findFirst({ where }: { where?: Record<string, unknown> }) {
+      return notificaciones.find((n) => cumpleCampos(n, where)) ?? null
+    },
+    async updateMany({ where, data }: { where: Record<string, unknown>; data: Partial<NotificacionFake> }) {
+      const afectadas = notificaciones.filter((n) => cumpleCampos(n, where))
+      for (const n of afectadas) Object.assign(n, data)
+      return { count: afectadas.length }
+    },
+  },
+  suscripcionPush: {
+    async upsert({ where, create, update }: { where: { endpoint: string }; create: Omit<SuscripcionFake, 'id'>; update: Partial<SuscripcionFake> }) {
+      const existente = suscripciones.find((s) => s.endpoint === where.endpoint)
+      if (existente) return Object.assign(existente, update)
+      const fila = { id: randomUUID(), ...create }
+      suscripciones.push(fila)
+      return fila
+    },
+    async findMany({ where }: { where?: Record<string, unknown> }) {
+      return suscripciones.filter((s) => cumpleCampos(s, where))
+    },
+    async deleteMany({ where }: { where: Record<string, unknown> }) {
+      const antes = suscripciones.length
+      suscripciones = suscripciones.filter((s) => !cumpleCampos(s, where))
+      return { count: antes - suscripciones.length }
     },
   },
   // Las transacciones interactivas simplemente ejecutan la función con el mismo cliente falso

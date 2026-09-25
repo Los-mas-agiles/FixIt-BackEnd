@@ -196,7 +196,12 @@ Reglas que aplica el backend (el frontend solo muestra el error si ocurre):
 | POST | `/push/suscripciones` | R M A | `PushSubscriptionJSON` (lo que devuelve `subscription.toJSON()`) | `{ ok: true }` (201) |
 | DELETE | `/push/suscripciones` | R M A | `{ endpoint: string }` | `{ ok: true }` |
 
-- Cuando una incidencia cambia de estado, el backend crea una `Notificacion` para el residente y le envía un **Web Push** con este payload:
+- **Cuándo se generan avisos** (se guardan como `Notificacion` y además se envía un Web Push a todos los dispositivos suscritos del usuario):
+  - Al **residente**, cada vez que su incidencia cambia de estado ("…está En proceso…", "…fue resuelta.").
+  - Al **técnico**, cuando un admin se la asigna ("Te asignaron la incidencia…"). Reasignar al mismo técnico o quitar el técnico no genera aviso.
+- `POST /push/suscripciones` solo acepta endpoints `https` de los servicios oficiales de push (Google FCM, Mozilla, Apple, Microsoft); cualquier otro → `400 VALIDACION`. Registrar el mismo navegador dos veces no duplica; si otro usuario inicia sesión en ese navegador, la suscripción pasa a ser suya.
+- Las suscripciones vencidas (el usuario desinstaló la app o quitó el permiso) se borran solas.
+- Payload del Web Push:
   ```json
   { "titulo": "FixIt", "mensaje": "Tu incidencia pasó a En proceso", "url": "/incidencias/<id>" }
   ```
@@ -227,3 +232,4 @@ El segundo edificio sirve para probar el aislamiento: un usuario de San Borja **
 | 2026-09-24 | Versión inicial |
 | 2026-09-25 | `GET /health/db`. Reglas detalladas de transición, concurrencia y asignación (Fase 3) |
 | 2026-09-25 | Detalle de la corrección manual y significado de `clasificadoPor` (Fase 4) |
+| 2026-09-25 | Avisos al técnico al ser asignado, reglas de suscripción push (Fase 5) |

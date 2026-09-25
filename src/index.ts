@@ -8,6 +8,7 @@ import { securityHeaders } from './middleware/securityHeaders.js'
 import { authRouter } from './modules/auth/routes.js'
 import { healthRouter } from './modules/health/routes.js'
 import { incidenciasRouter } from './modules/incidencias/routes.js'
+import { notificacionesRouter, pushRouter } from './modules/notificaciones/routes.js'
 import { usuariosRouter } from './modules/usuarios/routes.js'
 
 const app = express()
@@ -22,6 +23,8 @@ api.use('/health', healthRouter)
 api.use('/auth', authRouter)
 api.use('/usuarios', usuariosRouter)
 api.use('/incidencias', incidenciasRouter)
+api.use('/notificaciones', notificacionesRouter)
+api.use('/push', pushRouter)
 app.use('/api', api)
 
 app.use(notFound)

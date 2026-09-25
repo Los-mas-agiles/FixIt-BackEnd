@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import type { z } from 'zod'
 import { CONTENT_TYPE, detectarTipoImagen } from '../../domain/imagen.js'
+import { mensajeAsignacion, mensajeCambioEstado } from '../../domain/notificaciones.js'
 import { evaluarTransicion, superaLimiteWip } from '../../domain/transiciones.js'
 import { env } from '../../config/env.js'
 import { ApiError } from '../../lib/errors.js'
 import { prisma } from '../../lib/prisma.js'
+import { enviarPush } from '../../lib/push.js'
+import { enSegundoPlano } from '../../lib/segundoPlano.js'
 import { borrarFoto, subirFoto, urlsFirmadas } from '../../lib/storage.js'
 import type { EstadoIncidencia, Incidencia, IncidenciaDetalle, Prioridad, TipoIncidencia } from '../../types/models.js'
 import type { UsuarioAutenticado } from '../../types/express.js'
@@ -96,6 +99,17 @@ export async function listarIncidencias(
   return incidencias.map((i) => aIncidencia(i, i.fotoPath ? (urls.get(i.fotoPath) ?? null) : null))
 }
 
+interface Aviso {
+  usuarioId: string
+  mensaje: string
+}
+
+/** Envía el push del aviso DESPUÉS de responder (la notificación ya quedó guardada en la BD). */
+function enviarAviso(aviso: Aviso | null, incidenciaId: string) {
+  if (!aviso) return
+  enSegundoPlano(() => enviarPush(aviso.usuarioId, { titulo: 'FixIt', mensaje: aviso.mensaje, url: `/incidencias/${incidenciaId}` }))
+}
+
 const noEncontrada = () => new ApiError(404, 'NO_ENCONTRADO', 'La incidencia no existe')
 
 /** Un id con formato inválido se trata igual que uno inexistente (404, no 500). */
@@ -140,10 +154,10 @@ export async function cambiarEstado(
 ): Promise<Incidencia> {
   validarId(id)
 
-  await prisma.$transaction(async (tx) => {
+  const aviso = await prisma.$transaction(async (tx): Promise<Aviso> => {
     const incidencia = await tx.incidencia.findFirst({
       where: { id, edificioId: usuario.edificioId },
-      select: { id: true, estado: true, asignadoAId: true },
+      select: { id: true, estado: true, asignadoAId: true, residenteId: true, descripcion: true },
     })
     if (!incidencia) throw noEncontrada()
 
@@ -176,8 +190,14 @@ export async function cambiarEstado(
     await tx.historialEstado.create({
       data: { incidenciaId: id, estadoAnterior: incidencia.estado, estadoNuevo, usuarioId: usuario.id, fecha: ahora },
     })
+
+    // HU4: el residente se entera del cambio (en la app y por push)
+    const mensaje = mensajeCambioEstado(incidencia.descripcion, estadoNuevo)
+    await tx.notificacion.create({ data: { usuarioId: incidencia.residenteId, incidenciaId: id, mensaje, fecha: ahora } })
+    return { usuarioId: incidencia.residenteId, mensaje }
   })
 
+  enviarAviso(aviso, id)
   return incidenciaCompleta(id)
 }
 
@@ -188,10 +208,10 @@ export async function asignarTecnico(
 ): Promise<Incidencia> {
   validarId(id)
 
-  await prisma.$transaction(async (tx) => {
+  const aviso = await prisma.$transaction(async (tx): Promise<Aviso | null> => {
     const incidencia = await tx.incidencia.findFirst({
       where: { id, edificioId: usuario.edificioId },
-      select: { id: true, estado: true, asignadoAId: true },
+      select: { id: true, estado: true, asignadoAId: true, descripcion: true },
     })
     if (!incidencia) throw noEncontrada()
 
@@ -219,8 +239,15 @@ export async function asignarTecnico(
     }
 
     await tx.incidencia.update({ where: { id }, data: { asignadoAId: tecnicoId } })
+
+    // El técnico nuevo se entera de que tiene trabajo asignado
+    if (!tecnicoId || tecnicoId === incidencia.asignadoAId) return null
+    const mensaje = mensajeAsignacion(incidencia.descripcion)
+    await tx.notificacion.create({ data: { usuarioId: tecnicoId, incidenciaId: id, mensaje } })
+    return { usuarioId: tecnicoId, mensaje }
   })
 
+  enviarAviso(aviso, id)
   return incidenciaCompleta(id)
 }
 
