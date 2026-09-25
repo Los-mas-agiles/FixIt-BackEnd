@@ -18,3 +18,11 @@ export const listarIncidenciasSchema = z.object({
 })
 
 export const idIncidenciaSchema = z.uuid()
+
+export const cambiarEstadoSchema = z.object({
+  estado: estadoSchema,
+})
+
+export const asignarSchema = z.object({
+  tecnicoId: z.uuid('El técnico no es válido').nullable(),
+})

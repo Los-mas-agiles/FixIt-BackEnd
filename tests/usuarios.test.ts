@@ -17,8 +17,15 @@ describe('GET /api/usuarios', () => {
     const res = await request(app).get('/api/usuarios').set('Authorization', await tokenDe('admin@olivos.demo'))
     expect(res.status).toBe(200)
     const emails = res.body.map((u: { email: string }) => u.email)
-    // Ordenados por nombre: Ana Torres, Carlos Quispe, Jorge Salazar, María Rojas
-    expect(emails).toEqual(['admin@olivos.demo', 'tecnico1@olivos.demo', 'residente2@olivos.demo', 'residente1@olivos.demo'])
+    // Ordenados por nombre: Ana Torres, Carlos Quispe, Jorge Salazar, Luis Huamán, María Rojas
+    expect(emails).toEqual([
+      'admin@olivos.demo',
+      'tecnico1@olivos.demo',
+      'residente2@olivos.demo',
+      'tecnico2@olivos.demo',
+      'residente1@olivos.demo',
+    ])
+    expect(emails).not.toContain('tecnico-inactivo@olivos.demo')
     expect(emails).not.toContain('admin@sanborja.demo') // otro edificio
     expect(emails).not.toContain('inactivo@olivos.demo') // desactivado
   })
@@ -26,15 +33,15 @@ describe('GET /api/usuarios', () => {
   it('el admin de otro edificio no ve a los de Los Olivos (aislamiento)', async () => {
     const res = await request(app).get('/api/usuarios').set('Authorization', await tokenDe('admin@sanborja.demo'))
     const emails = res.body.map((u: { email: string }) => u.email)
-    // Ordenados por nombre: Diego Paredes, Patricia Vega
-    expect(emails).toEqual(['residente1@sanborja.demo', 'admin@sanborja.demo'])
+    // Ordenados por nombre: Diego Paredes, Patricia Vega, Rafael Técnico SB
+    expect(emails).toEqual(['residente1@sanborja.demo', 'admin@sanborja.demo', 'tecnico1@sanborja.demo'])
   })
 
   it('filtra por rol (para elegir técnicos al asignar)', async () => {
     const res = await request(app)
       .get('/api/usuarios?rol=mantenimiento')
       .set('Authorization', await tokenDe('admin@olivos.demo'))
-    expect(res.body.map((u: { email: string }) => u.email)).toEqual(['tecnico1@olivos.demo'])
+    expect(res.body.map((u: { email: string }) => u.email)).toEqual(['tecnico1@olivos.demo', 'tecnico2@olivos.demo'])
   })
 
   it('rol inválido en el query → 400', async () => {

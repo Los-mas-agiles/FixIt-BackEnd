@@ -81,6 +81,9 @@ export function reiniciarBD() {
     nuevoUsuario({ nombre: 'Patricia Vega', email: 'admin@sanborja.demo', rol: 'administrador', edificioId: EDIFICIO_B.id }),
     nuevoUsuario({ nombre: 'Diego Paredes', email: 'residente1@sanborja.demo', rol: 'residente', edificioId: EDIFICIO_B.id }),
     nuevoUsuario({ nombre: 'Jorge Salazar', email: 'residente2@olivos.demo', rol: 'residente', edificioId: EDIFICIO_A.id }),
+    nuevoUsuario({ nombre: 'Luis Huamán', email: 'tecnico2@olivos.demo', rol: 'mantenimiento', edificioId: EDIFICIO_A.id }),
+    nuevoUsuario({ nombre: 'Técnico Inactivo', email: 'tecnico-inactivo@olivos.demo', rol: 'mantenimiento', edificioId: EDIFICIO_A.id, activo: false }),
+    nuevoUsuario({ nombre: 'Rafael Técnico SB', email: 'tecnico1@sanborja.demo', rol: 'mantenimiento', edificioId: EDIFICIO_B.id }),
   ]
   incidencias = []
   historial = []
@@ -177,6 +180,10 @@ export const prisma = {
       const usuario = usuarios.find((u) => (where.id ? u.id === where.id : u.email === where.email))
       return usuario ? conEdificio(usuario) : null
     },
+    async findFirst({ where }: { where?: WhereUsuario }) {
+      const usuario = usuarios.find((u) => cumple(u, where))
+      return usuario ? conEdificio(usuario) : null
+    },
     async findMany({ where }: { where?: WhereUsuario }) {
       return usuarios
         .filter((u) => cumple(u, where))
@@ -222,6 +229,31 @@ export const prisma = {
       const incidencia = incidencias.find((i) => cumpleIncidencia(i, where))
       return incidencia ? conRelaciones(incidencia) : null
     },
+    async count({ where }: { where?: Record<string, unknown> }) {
+      return incidencias.filter((i) => cumpleIncidencia(i, where)).length
+    },
+    async updateMany({ where, data }: { where: Record<string, unknown>; data: Partial<IncidenciaFake> }) {
+      const afectadas = incidencias.filter((i) => cumpleIncidencia(i, where))
+      for (const i of afectadas) Object.assign(i, data)
+      return { count: afectadas.length }
+    },
+    async update({ where, data }: { where: { id: string }; data: Partial<IncidenciaFake> }) {
+      const incidencia = incidencias.find((i) => i.id === where.id)
+      if (!incidencia) throw Object.assign(new Error('Record not found'), { code: 'P2025' })
+      Object.assign(incidencia, data)
+      return conRelaciones(incidencia)
+    },
+  },
+  historialEstado: {
+    async create({ data }: { data: Omit<HistorialFake, 'id'> }) {
+      const fila = { id: randomUUID(), ...data }
+      historial.push(fila)
+      return fila
+    },
+  },
+  // Las transacciones interactivas simplemente ejecutan la función con el mismo cliente falso
+  async $transaction<T>(fn: (tx: never) => Promise<T>): Promise<T> {
+    return fn(prisma as never)
   },
   async $queryRaw() {
     return [{ '?column?': 1 }]

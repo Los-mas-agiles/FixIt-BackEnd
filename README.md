@@ -97,7 +97,7 @@ Todas con la contraseña `FixIt2026!` — ver la tabla completa en [`docs/CONTRA
 - [x] Fase 0 — Cimientos (proyecto, BD, seed, CI, deploy)
 - [x] Fase 1 — HU6 Login con roles
 - [x] Fase 2 — HU1 Reporte de incidencias con foto
-- [ ] Fase 3 — HU3 Tablero Kanban (transiciones, asignación, límite de WIP)
+- [x] Fase 3 — HU3 Tablero Kanban (transiciones, asignación, límite de WIP)
 - [ ] Fase 4 — HU2 Clasificación con IA
 - [ ] Fase 5 — HU4 Notificaciones
 - [ ] Fase 6 — HU5 KPIs y CFD

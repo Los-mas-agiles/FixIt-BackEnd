@@ -160,10 +160,18 @@ Reglas que aplica el backend (el frontend solo muestra el error si ocurre):
 - **Clasificación:** `POST /incidencias` tarda 1–8 segundos porque la IA clasifica en el mismo request. Mostrar un estado "Enviando y clasificando…". La respuesta ya trae `tipo` y `prioridad`.
 - **Foto:** el frontend la comprime antes de enviarla (máx. ~1 MB recomendado). Vercel rechaza bodies > 4.5 MB.
 - **Transiciones permitidas** (solo hacia adelante):
-  - `pendiente → en_proceso`: si quien la mueve es M y la incidencia no tiene técnico, se le asigna automáticamente. Si la mueve A, la incidencia debe tener técnico asignado.
-  - `en_proceso → resuelto`: solo el técnico asignado o un A.
-  - Cualquier otra → `409 TRANSICION_INVALIDA`.
-- **Límite de WIP:** un técnico no puede tener más de **3** incidencias en `en_proceso` (configurable en el backend). Si se excede → `409 LIMITE_WIP` con mensaje "Ya tienes 3 incidencias en proceso. Resuelve una antes de tomar otra."
+  - `pendiente → en_proceso`:
+    - Si la mueve **M** y no tiene técnico, se le asigna automáticamente. Si está asignada a **otro** técnico → `403 PROHIBIDO` ("Esta incidencia está asignada a otro técnico").
+    - Si la mueve **A**, la incidencia debe tener técnico asignado; si no → `409 TRANSICION_INVALIDA` ("Asigna un técnico antes de pasarla a "En proceso"").
+  - `en_proceso → resuelto`: solo el técnico asignado o un A. Otro técnico → `403 PROHIBIDO`.
+  - Cualquier otra (saltarse un paso, retroceder, repetir el mismo estado) → `409 TRANSICION_INVALIDA`.
+- **Concurrencia:** si dos personas mueven la misma tarjeta a la vez, solo una lo logra; la otra recibe `409 TRANSICION_INVALIDA` ("Otra persona actualizó esta incidencia hace un momento. Recarga el tablero."). El frontend debe recargar la lista al recibir cualquier `409`.
+- **Asignación** (`PATCH /incidencias/:id/asignacion`, solo A):
+  - El técnico debe ser `mantenimiento`, estar activo y ser del mismo edificio; si no → `400 VALIDACION`.
+  - `tecnicoId: null` quita el técnico, solo si la incidencia está `pendiente`.
+  - Reasignar una `en_proceso` a otro técnico respeta el límite de WIP del nuevo técnico (`409 LIMITE_WIP`).
+  - Una incidencia `resuelto` no se puede reasignar → `409 TRANSICION_INVALIDA`.
+- **Límite de WIP:** un técnico no puede tener más de **3** incidencias en `en_proceso` (configurable en el backend). Si se excede → `409 LIMITE_WIP` con mensaje "Ya tienes 3 incidencias en proceso. Resuelve una antes de tomar otra." (o, si la mueve un admin, "El técnico ya tiene 3 incidencias en proceso. Espera a que resuelva una o asigna otro técnico.").
 - **Fechas** (`fechaInicioProceso`, `fechaResolucion`) las pone el servidor. El frontend nunca las envía.
 - **Clasificación manual:** cambia `clasificadoPor` a `'manual'`.
 
@@ -216,3 +224,4 @@ El segundo edificio sirve para probar el aislamiento: un usuario de San Borja **
 | Fecha | Cambio |
 |---|---|
 | 2026-09-24 | Versión inicial |
+| 2026-09-25 | `GET /health/db`. Reglas detalladas de transición, concurrencia y asignación (Fase 3) |

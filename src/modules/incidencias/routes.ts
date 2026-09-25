@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { requireAuth, requireRol, usuarioActual } from '../../middleware/auth.js'
-import { crearIncidenciaSchema, listarIncidenciasSchema } from './schemas.js'
-import { crearIncidencia, listarIncidencias, obtenerIncidencia } from './service.js'
+import { asignarSchema, cambiarEstadoSchema, crearIncidenciaSchema, listarIncidenciasSchema } from './schemas.js'
+import { asignarTecnico, cambiarEstado, crearIncidencia, listarIncidencias, obtenerIncidencia } from './service.js'
 
 export const MAX_TAMANO_FOTO = 4 * 1024 * 1024 // 4 MB (Vercel rechaza bodies > 4.5 MB)
 
@@ -32,4 +32,16 @@ incidenciasRouter.get('/', async (req, res) => {
 // GET /incidencias/:id
 incidenciasRouter.get('/:id', async (req, res) => {
   res.json(await obtenerIncidencia(usuarioActual(req), req.params.id))
+})
+
+// PATCH /incidencias/:id/estado  { estado }
+incidenciasRouter.patch<{ id: string }>('/:id/estado', requireRol('mantenimiento', 'administrador'), async (req, res) => {
+  const { estado } = cambiarEstadoSchema.parse(req.body)
+  res.json(await cambiarEstado(usuarioActual(req), req.params.id, estado))
+})
+
+// PATCH /incidencias/:id/asignacion  { tecnicoId: string | null }
+incidenciasRouter.patch<{ id: string }>('/:id/asignacion', requireRol('administrador'), async (req, res) => {
+  const { tecnicoId } = asignarSchema.parse(req.body)
+  res.json(await asignarTecnico(usuarioActual(req), req.params.id, tecnicoId))
 })
