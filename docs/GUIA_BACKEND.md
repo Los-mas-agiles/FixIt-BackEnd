@@ -24,7 +24,7 @@ El backend es **el único que toma decisiones de negocio** y el único que toca 
 | jsonwebtoken + bcryptjs | Login con JWT y hash de contraseñas |
 | multer | Recibir la foto (`multipart/form-data`) en memoria |
 | @supabase/supabase-js | Subir fotos y generar URLs firmadas (con la *secret key*, solo en el servidor) |
-| `fetch` nativo (API REST de Gemini) | Clasificación con IA, sin SDK ni dependencias extra |
+| `fetch` nativo (APIs REST de Groq y Gemini) | Clasificación con IA, sin SDK ni dependencias extra |
 | web-push | Notificaciones push (VAPID) |
 | Vitest + Supertest | Tests |
 | tsx | Correr TS en desarrollo |
@@ -206,7 +206,8 @@ const SIGUIENTE: Record<EstadoIncidencia, EstadoIncidencia | null> = {
 ### 4.3 Clasificación con IA
 
 - Se ejecuta **dentro** de `POST /incidencias`, antes de guardar. Timeout **total** de **8 segundos** (`AbortSignal.timeout`).
-- **Dos modelos:** primero `GEMINI_MODEL`; si falla por saturación (503), cuota (429), timeout o respuesta inválida y quedan ≥ 1.5 s, se reintenta con `GEMINI_MODEL_RESPALDO`. Un error no reintentable (ej. API key inválida) va directo al fallback.
+- **Cadena de modelos** (`IA_MODELOS`, formato `proveedor:modelo`): se prueban en orden; si uno falla por saturación (503), cuota (429), timeout o respuesta inválida y quedan ≥ 1.5 s, se prueba el siguiente. Un error no reintentable (ej. API key inválida) descarta solo los modelos de ese proveedor. Se saltan los proveedores sin API key.
+- **Groq** (`openai/gpt-oss-*`) se usa con JSON estricto (`response_format: json_schema, strict: true`) y `reasoning_effort: low`.
 - Se usa la salida estructurada de Gemini (`responseMimeType: 'application/json'` + `responseSchema` con los enums) para que la respuesta sea un JSON válido.
 - Aun así se valida con Zod. Si la respuesta no calza, hay timeout o cualquier error → **fallback**: `tipo: 'otros'`, `prioridad: 'media'`, `clasificadoPor: 'fallback'`. Una incidencia **nunca** queda sin clasificar (Objetivo 4).
 - Se guardan también `tipoIA` / `prioridadIA` para calcular después la precisión.
@@ -275,8 +276,8 @@ JWT_EXPIRES_IN=7d
 
 # IA
 GEMINI_API_KEY=
-GEMINI_MODEL=gemini-3.5-flash-lite
-GEMINI_MODEL_RESPALDO=gemini-3.1-flash-lite
+GROQ_API_KEY=
+IA_MODELOS=groq:openai/gpt-oss-20b,gemini:gemini-3.5-flash-lite,gemini:gemini-3.1-flash-lite
 
 # Web Push (generar con: npx web-push generate-vapid-keys)
 VAPID_PUBLIC_KEY=

@@ -11,11 +11,23 @@ export interface PayloadPush {
 
 let configurado = false
 
-/** Configura VAPID la primera vez. Devuelve false si faltan las claves (el push queda desactivado). */
+/** Configura VAPID la primera vez. Devuelve false si faltan las claves o son inválidas (el push queda desactivado). */
 function configurar(): boolean {
   if (configurado) return true
-  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return false
-  webpush.setVapidDetails(env.VAPID_SUBJECT, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY)
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) {
+    console.warn('Web Push desactivado: faltan VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY o VAPID_SUBJECT')
+    return false
+  }
+  try {
+    webpush.setVapidDetails(env.VAPID_SUBJECT, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY)
+  } catch (error) {
+    // Típico: una clave escrita a mano. La privada debe ser la pareja exacta de la pública (generadas juntas).
+    console.error(
+      'Web Push desactivado: las claves VAPID son inválidas. Deben ser el par generado con "npx web-push generate-vapid-keys".',
+      error instanceof Error ? error.message : error,
+    )
+    return false
+  }
   configurado = true
   return true
 }
@@ -26,10 +38,7 @@ function configurar(): boolean {
  * Las suscripciones vencidas (404/410) se borran solas.
  */
 export async function enviarPush(usuarioId: string, payload: PayloadPush): Promise<void> {
-  if (!configurar()) {
-    console.warn('Web Push desactivado: faltan VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY o VAPID_SUBJECT')
-    return
-  }
+  if (!configurar()) return
 
   const suscripciones = await prisma.suscripcionPush.findMany({ where: { usuarioId } })
   await Promise.all(

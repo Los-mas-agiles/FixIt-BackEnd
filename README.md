@@ -17,7 +17,7 @@ Proyecto del curso de **Ágiles (1ASI570)** — UPC, Ingeniería de Software, 20
 - **Node.js 24 (LTS)** + **TypeScript** + **Express 5**
 - **Prisma** sobre **PostgreSQL** (Supabase)
 - **Supabase Storage** para las fotos
-- **Gemini API** para la clasificación automática
+- **Groq + Gemini** para la clasificación automática (cadena de modelos con respaldo)
 - **Web Push** (VAPID) para notificaciones
 - **Zod** (validación), **JWT** + **bcrypt** (autenticación)
 - **Vitest** + **Supertest** (tests)
@@ -51,8 +51,8 @@ npm run dev                 # http://localhost:3000/api/health
 | `JWT_SECRET` | Cadena larga y aleatoria para firmar tokens |
 | `JWT_EXPIRES_IN` | Duración del token (`7d`) |
 | `GEMINI_API_KEY` | API key de Gemini |
-| `GEMINI_MODEL` | Modelo principal de Gemini (por defecto `gemini-3.5-flash-lite`) |
-| `GEMINI_MODEL_RESPALDO` | Modelo que se usa si el principal está saturado (por defecto `gemini-3.1-flash-lite`) |
+| `GROQ_API_KEY` | API key de Groq (console.groq.com) |
+| `IA_MODELOS` | Modelos de IA que se prueban en orden, `proveedor:modelo` separados por comas (ver `.env.example`) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Claves de Web Push (`npx web-push generate-vapid-keys`) |
 | `VAPID_SUBJECT` | `mailto:` de contacto para Web Push |
 | `WIP_LIMITE_TECNICO` | Máximo de incidencias en proceso por técnico (`3`) |

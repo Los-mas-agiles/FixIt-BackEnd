@@ -19,11 +19,11 @@ describe('config/env', () => {
   })
 
   it('usa los valores por defecto si las variables numéricas o de texto vienen vacías', async () => {
-    const env = await cargarEnv({ PORT: '', WIP_LIMITE_TECNICO: ' ', JWT_EXPIRES_IN: '', GEMINI_MODEL: '' })
+    const env = await cargarEnv({ PORT: '', WIP_LIMITE_TECNICO: ' ', JWT_EXPIRES_IN: '', IA_MODELOS: '' })
     expect(env.PORT).toBe(3000)
     expect(env.WIP_LIMITE_TECNICO).toBe(3)
     expect(env.JWT_EXPIRES_IN).toBe('7d')
-    expect(env.GEMINI_MODEL).toBe('gemini-3.5-flash-lite')
+    expect(env.IA_MODELOS).toContain('gemini:gemini-3.5-flash-lite')
   })
 
   it('separa CORS_ORIGINS por comas', async () => {

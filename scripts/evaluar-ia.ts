@@ -1,12 +1,12 @@
 // Mide la precisión de la clasificación con Gemini sobre un set de descripciones etiquetadas a mano.
-// Uso:  npm run ia:evaluar                         (evalúa GEMINI_MODEL y GEMINI_MODEL_RESPALDO)
-//       npm run ia:evaluar -- gemini-3.5-flash-lite   (solo ese modelo)
+// Uso:  npm run ia:evaluar                                  (evalúa todos los modelos de IA_MODELOS con API key)
+//       npm run ia:evaluar -- groq:openai/gpt-oss-20b          (solo ese modelo; formato proveedor:modelo)
 // Escribe el reporte en docs/EVALUACION_IA.md (evidencia para el Objetivo 4 del TF).
 import { readFileSync, writeFileSync } from 'node:fs'
 import { env } from '../src/config/env.js'
-import { construirPrompt, parsearRespuestaIA, SCHEMA_RESPUESTA_IA } from '../src/domain/clasificacion.js'
-import { GeminiError, generarJson } from '../src/lib/gemini.js'
-import { TIMEOUT_CLASIFICACION_MS } from '../src/modules/incidencias/clasificador.js'
+import { construirPrompt, parsearRespuestaIA } from '../src/domain/clasificacion.js'
+import { ErrorProveedorIA } from '../src/lib/ia/errores.js'
+import { llamarModelo, parsearModelos, TIMEOUT_CLASIFICACION_MS, type ModeloIA } from '../src/modules/incidencias/clasificador.js'
 import type { Prioridad, TipoIncidencia } from '../src/types/models.js'
 
 interface Caso {
@@ -28,19 +28,21 @@ const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const casos = JSON.parse(readFileSync(new URL('./dataset-clasificacion.json', import.meta.url), 'utf8')) as Caso[]
 const argumentos = process.argv.slice(2)
-const modelos = argumentos.length > 0 ? argumentos : [env.GEMINI_MODEL, env.GEMINI_MODEL_RESPALDO]
+const tieneKey = (m: ModeloIA) => Boolean(m.proveedor === 'gemini' ? env.GEMINI_API_KEY : env.GROQ_API_KEY)
+const modelos = parsearModelos(argumentos.length > 0 ? argumentos.join(',') : env.IA_MODELOS).filter(tieneKey)
+if (modelos.length === 0) throw new Error('No hay modelos para evaluar (¿falta la API key del proveedor en el .env?)')
 
-async function evaluar(modelo: string): Promise<Resultado[]> {
+async function evaluar(modelo: ModeloIA): Promise<Resultado[]> {
   const resultados: Resultado[] = []
   for (const [i, caso] of casos.entries()) {
     const inicio = Date.now()
     let resultado: Resultado
     try {
-      const texto = await generarJson({ modelo, prompt: construirPrompt(caso.descripcion), schema: SCHEMA_RESPUESTA_IA, timeoutMs: TIMEOUT_CLASIFICACION_MS })
+      const texto = await llamarModelo(modelo, construirPrompt(caso.descripcion), TIMEOUT_CLASIFICACION_MS)
       const r = parsearRespuestaIA(texto)
       resultado = { caso, tipo: r?.tipo ?? null, prioridad: r?.prioridad ?? null, ms: Date.now() - inicio, error: r ? null : 'respuesta inválida' }
     } catch (error) {
-      const detalle = error instanceof GeminiError ? `${error.status || 'timeout'}` : 'error'
+      const detalle = error instanceof ErrorProveedorIA ? `${error.status || 'timeout'}` : 'error'
       resultado = { caso, tipo: null, prioridad: null, ms: Date.now() - inicio, error: detalle }
     }
     resultados.push(resultado)
@@ -61,7 +63,8 @@ const secciones: string[] = []
 const filasResumen: string[] = []
 
 for (const modelo of modelos) {
-  console.log(`\nEvaluando ${modelo} (${casos.length} casos)...`)
+  const etiqueta = `${modelo.proveedor}:${modelo.modelo}`
+  console.log(`\nEvaluando ${etiqueta} (${casos.length} casos)...`)
   const resultados = await evaluar(modelo)
   const respondidos = resultados.filter((r) => !r.error)
   const tipoOk = respondidos.filter((r) => r.tipo === r.caso.tipo).length
@@ -72,12 +75,12 @@ for (const modelo of modelos) {
   const latencias = respondidos.map((r) => r.ms)
 
   filasResumen.push(
-    `| \`${modelo}\` | ${pct(respondidos.length, casos.length)} | ${pct(tipoOk, respondidos.length)} | ${pct(prioridadOk, respondidos.length)} | ${pct(ambosOk, respondidos.length)} | ${pct(altaDetectadas, altaReales.length)} | ${percentil(latencias, 50)} ms | ${percentil(latencias, 95)} ms |`,
+    `| \`${etiqueta}\` | ${pct(respondidos.length, casos.length)} | ${pct(tipoOk, respondidos.length)} | ${pct(prioridadOk, respondidos.length)} | ${pct(ambosOk, respondidos.length)} | ${pct(altaDetectadas, altaReales.length)} | ${percentil(latencias, 50)} ms | ${percentil(latencias, 95)} ms |`,
   )
 
   const errores = resultados.filter((r) => r.error || r.tipo !== r.caso.tipo || r.prioridad !== r.caso.prioridad)
   secciones.push(
-    `### \`${modelo}\` — casos con diferencias (${errores.length})\n\n` +
+    `### \`${etiqueta}\` — casos con diferencias (${errores.length})\n\n` +
       (errores.length === 0
         ? '_Todos los casos coinciden con la etiqueta esperada._\n'
         : '| Descripción | Esperado | IA |\n|---|---|---|\n' +
@@ -104,10 +107,10 @@ ${filasResumen.join('\n')}
 ${secciones.join('\n')}
 ## Cómo se protege el Objetivo 4 (100 % clasificado sin intervención manual)
 
-La **calidad** de la IA es estable (tipo correcto en el 100 % de lo respondido), pero la **disponibilidad** del nivel gratuito de Gemini varía según la hora: en mediciones del 2026-09-25 el modelo principal respondió entre el 77 % y el 90 % de las llamadas dentro del timeout. Para que eso no afecte al Objetivo 4, la API tiene tres capas:
+La **disponibilidad** de los niveles gratuitos varía según la hora (el 2026-09-25 Gemini llegó a responder 503 en todos sus modelos a la vez). Para que eso no afecte al Objetivo 4, la API tiene tres capas:
 
-1. **Modelo principal** (\`GEMINI_MODEL\`): se usa siempre primero.
-2. **Modelo de respaldo** (\`GEMINI_MODEL_RESPALDO\`): si el principal está saturado (503), sin cuota (429), no responde a tiempo o responde algo inválido.
+1. **Cadena de modelos** (\`IA_MODELOS\`, en orden): si uno está saturado (503), sin cuota (429), no responde a tiempo o responde algo inválido, se prueba el siguiente, dentro de un máximo total de 8 s.
+2. **Proveedores independientes** (Groq y Gemini): la caída de uno no afecta al otro; una API key inválida solo descarta los modelos de ese proveedor.
 3. **Reclasificación automática en segundo plano**: si ninguno respondió, la incidencia se guarda con el fallback (\`otros\` / \`media\`, \`clasificadoPor: fallback\`) para no hacer esperar al residente, y la API la vuelve a enviar a la IA automáticamente (al crear otras incidencias o al consultar el tablero, como mucho una vez por minuto). Las que un admin corrigió a mano nunca se tocan.
 
 Para medir el Objetivo 4 en el piloto: \`% clasificado por IA = incidencias con tipoIA registrado / total de incidencias\`.
