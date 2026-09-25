@@ -17,7 +17,8 @@ describe('GET /api/usuarios', () => {
     const res = await request(app).get('/api/usuarios').set('Authorization', await tokenDe('admin@olivos.demo'))
     expect(res.status).toBe(200)
     const emails = res.body.map((u: { email: string }) => u.email)
-    expect(emails).toEqual(['admin@olivos.demo', 'tecnico1@olivos.demo', 'residente1@olivos.demo'])
+    // Ordenados por nombre: Ana Torres, Carlos Quispe, Jorge Salazar, María Rojas
+    expect(emails).toEqual(['admin@olivos.demo', 'tecnico1@olivos.demo', 'residente2@olivos.demo', 'residente1@olivos.demo'])
     expect(emails).not.toContain('admin@sanborja.demo') // otro edificio
     expect(emails).not.toContain('inactivo@olivos.demo') // desactivado
   })

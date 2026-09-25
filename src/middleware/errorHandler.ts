@@ -1,10 +1,17 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express'
+import multer from 'multer'
 import { ZodError } from 'zod'
 import { ApiError } from '../lib/errors.js'
 import type { ApiError as ApiErrorBody } from '../types/models.js'
 
 export const notFound: RequestHandler = (_req, _res, next) => {
   next(new ApiError(404, 'NO_ENCONTRADO', 'Ruta no encontrada'))
+}
+
+const MENSAJES_MULTER: Partial<Record<multer.MulterError['code'], string>> = {
+  LIMIT_FILE_SIZE: 'La foto no puede pesar más de 4 MB',
+  LIMIT_FILE_COUNT: 'Solo se puede adjuntar una foto',
+  LIMIT_UNEXPECTED_FILE: 'La foto debe enviarse en el campo "foto"',
 }
 
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
@@ -23,6 +30,9 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
         details: err.issues.map((issue) => ({ campo: issue.path.join('.'), mensaje: issue.message })),
       },
     }
+  } else if (err instanceof multer.MulterError) {
+    status = 400
+    body = { error: { code: 'VALIDACION', message: MENSAJES_MULTER[err.code] ?? 'No se pudo procesar el archivo enviado' } }
   } else if (err?.code === 'P2002') {
     // Violación de campo único en Prisma (ej. dos altas simultáneas con el mismo email)
     status = 400

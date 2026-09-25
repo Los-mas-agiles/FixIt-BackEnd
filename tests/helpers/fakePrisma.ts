@@ -25,8 +25,47 @@ interface UsuarioFake {
 export const EDIFICIO_A = { id: 'edificio-a', nombre: 'Residencial Los Olivos' }
 export const EDIFICIO_B = { id: 'edificio-b', nombre: 'Torre San Borja' }
 
+interface IncidenciaFake {
+  id: string
+  edificioId: string
+  residenteId: string
+  descripcion: string
+  fotoPath: string | null
+  tipo: string
+  prioridad: string
+  clasificadoPor: string
+  tipoIA: string | null
+  prioridadIA: string | null
+  estado: string
+  asignadoAId: string | null
+  fechaCreacion: Date
+  fechaInicioProceso: Date | null
+  fechaResolucion: Date | null
+}
+
+interface HistorialFake {
+  id: string
+  incidenciaId: string
+  estadoAnterior: string | null
+  estadoNuevo: string
+  usuarioId: string
+  fecha: Date
+}
+
 const edificios: EdificioFake[] = [EDIFICIO_A, EDIFICIO_B]
 let usuarios: UsuarioFake[] = []
+let incidencias: IncidenciaFake[] = []
+let historial: HistorialFake[] = []
+let fallarProximoCreate = false
+
+/** Hace que el próximo incidencia.create falle (para probar la limpieza de la foto). */
+export function simularFalloAlCrearIncidencia() {
+  fallarProximoCreate = true
+}
+
+export function todasLasIncidencias() {
+  return incidencias
+}
 
 function nuevoUsuario(datos: Omit<UsuarioFake, 'id' | 'passwordHash' | 'activo'> & Partial<UsuarioFake>): UsuarioFake {
   return { id: randomUUID(), passwordHash: HASH_DEMO, activo: true, ...datos }
@@ -41,7 +80,73 @@ export function reiniciarBD() {
     nuevoUsuario({ nombre: 'Pedro Inactivo', email: 'inactivo@olivos.demo', rol: 'residente', edificioId: EDIFICIO_A.id, activo: false }),
     nuevoUsuario({ nombre: 'Patricia Vega', email: 'admin@sanborja.demo', rol: 'administrador', edificioId: EDIFICIO_B.id }),
     nuevoUsuario({ nombre: 'Diego Paredes', email: 'residente1@sanborja.demo', rol: 'residente', edificioId: EDIFICIO_B.id }),
+    nuevoUsuario({ nombre: 'Jorge Salazar', email: 'residente2@olivos.demo', rol: 'residente', edificioId: EDIFICIO_A.id }),
   ]
+  incidencias = []
+  historial = []
+  fallarProximoCreate = false
+}
+
+/** Inserta una incidencia directamente (para preparar escenarios de lectura). */
+export function crearIncidenciaDePrueba(datos: {
+  residenteEmail: string
+  descripcion?: string
+  estado?: string
+  prioridad?: string
+  asignadoAEmail?: string
+  fotoPath?: string
+  fechaCreacion?: Date
+}) {
+  const residente = buscarUsuario(datos.residenteEmail)
+  const incidencia: IncidenciaFake = {
+    id: randomUUID(),
+    edificioId: residente.edificioId,
+    residenteId: residente.id,
+    descripcion: datos.descripcion ?? 'Fuga de agua en el baño del departamento',
+    fotoPath: datos.fotoPath ?? null,
+    tipo: 'plomeria',
+    prioridad: datos.prioridad ?? 'media',
+    clasificadoPor: 'ia',
+    tipoIA: 'plomeria',
+    prioridadIA: datos.prioridad ?? 'media',
+    estado: datos.estado ?? 'pendiente',
+    asignadoAId: datos.asignadoAEmail ? buscarUsuario(datos.asignadoAEmail).id : null,
+    fechaCreacion: datos.fechaCreacion ?? new Date(),
+    fechaInicioProceso: null,
+    fechaResolucion: null,
+  }
+  incidencias.push(incidencia)
+  historial.push({
+    id: randomUUID(),
+    incidenciaId: incidencia.id,
+    estadoAnterior: null,
+    estadoNuevo: 'pendiente',
+    usuarioId: residente.id,
+    fecha: incidencia.fechaCreacion,
+  })
+  return incidencia
+}
+
+function resumen(id: string | null) {
+  const usuario = id ? usuarios.find((u) => u.id === id) : undefined
+  return usuario ? { id: usuario.id, nombre: usuario.nombre } : null
+}
+
+// Devuelve la incidencia con sus relaciones (residente, asignadoA, historial con usuario)
+function conRelaciones(i: IncidenciaFake) {
+  return {
+    ...i,
+    residente: resumen(i.residenteId)!,
+    asignadoA: resumen(i.asignadoAId),
+    historial: historial
+      .filter((h) => h.incidenciaId === i.id)
+      .sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
+      .map((h) => ({ ...h, usuario: resumen(h.usuarioId)! })),
+  }
+}
+
+function cumpleIncidencia(i: IncidenciaFake, where: Record<string, unknown> = {}) {
+  return Object.entries(where).every(([campo, valor]) => i[campo as keyof IncidenciaFake] === valor)
 }
 
 export function buscarUsuario(email: string): UsuarioFake {
@@ -85,6 +190,37 @@ export const prisma = {
       const usuario = { id: randomUUID(), activo: true, ...data }
       usuarios.push(usuario)
       return conEdificio(usuario)
+    },
+  },
+  incidencia: {
+    async create({ data }: { data: Omit<IncidenciaFake, 'estado' | 'asignadoAId' | 'fechaCreacion' | 'fechaInicioProceso' | 'fechaResolucion'> & { historial: { create: Omit<HistorialFake, 'id' | 'incidenciaId' | 'fecha'> } } }) {
+      if (fallarProximoCreate) {
+        fallarProximoCreate = false
+        throw new Error('Fallo simulado de la BD')
+      }
+      const { historial: nested, ...campos } = data
+      const incidencia: IncidenciaFake = {
+        ...campos,
+        estado: 'pendiente',
+        asignadoAId: null,
+        fechaCreacion: new Date(),
+        fechaInicioProceso: null,
+        fechaResolucion: null,
+      }
+      incidencias.push(incidencia)
+      historial.push({ id: randomUUID(), incidenciaId: incidencia.id, fecha: incidencia.fechaCreacion, ...nested.create })
+      return conRelaciones(incidencia)
+    },
+    async findMany({ where, take }: { where?: Record<string, unknown>; take?: number }) {
+      return incidencias
+        .filter((i) => cumpleIncidencia(i, where))
+        .sort((a, b) => b.fechaCreacion.getTime() - a.fechaCreacion.getTime())
+        .slice(0, take)
+        .map(conRelaciones)
+    },
+    async findFirst({ where }: { where?: Record<string, unknown> }) {
+      const incidencia = incidencias.find((i) => cumpleIncidencia(i, where))
+      return incidencia ? conRelaciones(incidencia) : null
     },
   },
   async $queryRaw() {
