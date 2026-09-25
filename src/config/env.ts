@@ -3,7 +3,11 @@
 import 'dotenv/config'
 import { z } from 'zod'
 
-const opcional = z.string().trim().min(1).optional()
+// Una variable vacía en el .env (ej. "VAPID_PUBLIC_KEY=") cuenta como no definida
+const opcional = z.preprocess(
+  (valor) => (typeof valor === 'string' && valor.trim() === '' ? undefined : valor),
+  z.string().trim().optional(),
+)
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
