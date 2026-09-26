@@ -102,7 +102,7 @@ Todas con la contraseña `FixIt2026!` — ver la tabla completa en [`docs/CONTRA
 - [x] Fase 3 — HU3 Tablero Kanban (transiciones, asignación, límite de WIP)
 - [x] Fase 4 — HU2 Clasificación con IA
 - [x] Fase 5 — HU4 Notificaciones
-- [ ] Fase 6 — HU5 KPIs y CFD
+- [x] Fase 6 — HU5 KPIs y CFD
 - [ ] Fase 7 — Piloto y cierre
 
 ## Cómo contribuir

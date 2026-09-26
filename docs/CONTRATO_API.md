@@ -75,6 +75,7 @@ export interface KPIs {
   throughput: number              // incidencias resueltas en el periodo
   totalReportadas: number         // creadas en el periodo
   precisionIA: number | null      // % de clasificaciones IA que el admin NO corrigió (0–100)
+  clasificadasPorIA: number | null // % de las reportadas en el periodo que la IA clasificó sola (Objetivo 4)
 }
 
 export interface PuntoCFD {
@@ -185,6 +186,11 @@ Reglas que aplica el backend (el frontend solo muestra el error si ocurre):
 | GET | `/kpis/cfd` | A | `?desde=ISO&hasta=ISO` (por defecto últimos 14 días) | `PuntoCFD[]` (un punto por día) |
 
 - El **Objetivo 2** del TF se mide con `GET /kpis?prioridad=alta` → `cycleTimeHoras < 48`.
+- El **Objetivo 4** se mide con `clasificadasPorIA` (meta: 100). Las incidencias que cayeron al fallback no cuentan hasta que se reclasifican.
+- `precisionIA`: entre las que clasificó la IA, % cuyo tipo y prioridad finales siguen siendo los de la IA (si el admin "corrige" dejando lo mismo, cuenta como acierto).
+- Horas y porcentajes con 1 decimal; `null` cuando no hay datos (no `0`).
+- CFD: un punto por día **de Lima** (`fecha` en hora de Lima), con el estado de cada incidencia al cierre del día; el último punto es el estado actual.
+- Errores: fecha que no es ISO, prioridad inválida, `desde >= hasta` o periodo de más de 366 días → `400 VALIDACION`.
 
 ### Notificaciones (HU4)
 

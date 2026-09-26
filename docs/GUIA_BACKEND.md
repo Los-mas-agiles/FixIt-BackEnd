@@ -237,10 +237,13 @@ Todos se calculan sobre las incidencias del edificio del admin:
 | **Lead time** (h) | promedio de `fechaResolucion − fechaCreacion` | las mismas |
 | **Throughput** | cantidad | las mismas |
 | **WIP** | cantidad | `estado = en_proceso` **ahora** |
-| **Precisión IA** (%) | `(clasificadas por IA − corregidas manualmente) / clasificadas por IA × 100` | creadas en el periodo con `tipoIA` no nulo |
-| **CFD** | por cada día: cuántas incidencias estaban en cada estado al final del día | reconstruido desde `historial_estados` |
+| **Precisión IA** (%) | clasificadas por IA cuyo `tipo`/`prioridad` final sigue igual a `tipoIA`/`prioridadIA` ÷ clasificadas por IA × 100 | creadas en el periodo con `tipoIA` no nulo |
+| **Clasificadas por IA** (%) | con `tipoIA` no nulo ÷ reportadas × 100 (Objetivo 4) | creadas en el periodo |
+| **CFD** | por cada día de Lima (UTC−5): cuántas incidencias estaban en cada estado al cierre del día; el último punto se corta en `hasta` | reconstruido con `fechaCreacion`, `fechaInicioProceso` y `fechaResolucion`, que son los mismos timestamps de `historial_estados` (el flujo solo avanza) |
 
-Si no hay resueltas en el periodo, `cycleTimeHoras` y `leadTimeHoras` son `null` (no `0`).
+Si no hay resueltas en el periodo, `cycleTimeHoras` y `leadTimeHoras` son `null` (no `0`); lo mismo con los porcentajes si no hay datos. Horas y porcentajes se redondean a 1 decimal. El periodo máximo es de 366 días.
+
+Para comprobar los números contra la BD real se puede calcular lo mismo en SQL (la Fase 6 se validó así: coincidieron todos los KPIs y el último punto del CFD con el tablero).
 
 > Nota para el TF: **cycle time** mide el tiempo de trabajo (desde que alguien la toma) y **lead time** el tiempo que espera el residente (desde que reporta). El Objetivo 2 usa el cycle time de prioridad alta.
 

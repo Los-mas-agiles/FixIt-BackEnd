@@ -59,6 +59,7 @@ export interface KPIs {
   throughput: number              // incidencias resueltas en el periodo
   totalReportadas: number         // creadas en el periodo
   precisionIA: number | null      // % de clasificaciones IA que el admin NO corrigió (0–100)
+  clasificadasPorIA: number | null // % de las reportadas en el periodo que la IA clasificó sola (Objetivo 4)
 }
 
 export interface PuntoCFD {
