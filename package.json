@@ -19,7 +19,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "ia:evaluar": "tsx scripts/evaluar-ia.ts"
+    "ia:evaluar": "tsx scripts/evaluar-ia.ts",
+    "escenarios": "tsx scripts/escenarios-criticos.ts"
   },
   "repository": {
     "type": "git",

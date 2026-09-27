@@ -11,6 +11,8 @@ Proyecto del curso de **Ágiles (1ASI570)** — UPC, Ingeniería de Software, 20
 | [`docs/CONTRATO_API.md`](docs/CONTRATO_API.md) | **Contrato con el frontend**: tipos, endpoints, errores y cuentas de demo. Fuente de verdad. |
 | [`docs/GUIA_BACKEND.md`](docs/GUIA_BACKEND.md) | Guía técnica: arquitectura, modelo de datos, reglas de negocio, IA, KPIs |
 | [`docs/PLAN_FASES.md`](docs/PLAN_FASES.md) | Fases de desarrollo, convenciones y Definition of Done |
+| [`docs/EVALUACION_IA.md`](docs/EVALUACION_IA.md) | Precisión y latencia de cada modelo de IA (30 casos etiquetados) |
+| [`docs/ESCENARIOS_CRITICOS.md`](docs/ESCENARIOS_CRITICOS.md) | Cycle time, WIP y throughput en 3 situaciones críticas, con y sin solución (TF 5.2 y 5.3) |
 
 ## Stack
 
@@ -71,6 +73,7 @@ npm run dev                 # http://localhost:3000/api/health
 | `npm run db:seed` | Carga datos de demo (idempotente) |
 | `npm run db:studio` | Explorador visual de la base de datos |
 | `npm run ia:evaluar` | Mide la precisión de la IA con 30 casos etiquetados → `docs/EVALUACION_IA.md` |
+| `npm run escenarios` | Simula las 3 situaciones críticas del TF (lluvia fuerte, técnico ausente, falla eléctrica) con y sin solución → `docs/ESCENARIOS_CRITICOS.md` |
 | `npm run db:generate` | Regenera el cliente de Prisma (se hace solo en `npm install`) |
 
 ## Estructura

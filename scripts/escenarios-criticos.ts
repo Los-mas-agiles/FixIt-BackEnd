@@ -1,0 +1,193 @@
+// Genera los números de las 3 situaciones críticas del TF (5.2 y 5.3) simulando el flujo del tablero.
+// Uso:  npm run escenarios            (200 simulaciones por escenario)
+//       npm run escenarios -- 50      (otra cantidad de simulaciones)
+// Escribe docs/ESCENARIOS_CRITICOS.md y un CFD por escenario en docs/escenarios/*.svg.
+// Usa las mismas funciones de KPIs y CFD que el panel del administrador (src/domain/kpis.ts).
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { calcularCfd, calcularKpis, diaLima, type IncidenciaKpi } from '../src/domain/kpis.js'
+import type { PuntoCFD } from '../src/types/models.js'
+import { ESCENARIOS, HORAS, INICIO_CRISIS, type Escenario } from './escenarios/escenarios.js'
+import { crearAzar, LIMITE_WIP, PASO_H, simular, type IncidenciaSimulada, type ResultadoSimulacion } from './escenarios/simulador.js'
+
+const SIMULACIONES = Number(process.argv[2] ?? 200)
+/** Fecha ficticia de inicio (00:00 de Lima de un lunes): solo sirve para convertir horas en fechas. */
+const BASE = Date.parse('2026-10-05T05:00:00Z')
+const fecha = (h: number) => new Date(BASE + h * 3_600_000)
+const PERIODO = { desde: fecha(INICIO_CRISIS), hasta: fecha(HORAS) }
+const DIAS_PERIODO = (HORAS - INICIO_CRISIS) / 24
+
+function aKpi(i: IncidenciaSimulada): IncidenciaKpi {
+  return {
+    prioridad: i.prioridad,
+    estado: i.fin !== null ? 'resuelto' : i.inicio !== null ? 'en_proceso' : 'pendiente',
+    tipo: i.tipo,
+    tipoIA: i.tipo,
+    prioridadIA: i.prioridad,
+    fechaCreacion: fecha(i.t),
+    fechaInicioProceso: i.inicio === null ? null : fecha(i.inicio),
+    fechaResolucion: i.fin === null ? null : fecha(i.fin),
+  }
+}
+
+interface Metricas {
+  cycleTime: number | null
+  cycleTimeAlta: number | null
+  leadTime: number | null
+  leadTimeAlta: number | null
+  wipPromedio: number
+  wipPico: number
+  throughputDia: number
+  reportadas: number
+  pendientesAlCierre: number
+}
+
+function medir(r: ResultadoSimulacion): Metricas {
+  const incidencias = r.incidencias.map(aKpi)
+  const todas = calcularKpis(incidencias, PERIODO, null)
+  const alta = calcularKpis(incidencias, PERIODO, 'alta')
+  const wip = r.wip.slice(INICIO_CRISIS / PASO_H)
+  return {
+    cycleTime: todas.cycleTimeHoras,
+    cycleTimeAlta: alta.cycleTimeHoras,
+    leadTime: todas.leadTimeHoras,
+    leadTimeAlta: alta.leadTimeHoras,
+    wipPromedio: wip.reduce((a, b) => a + b, 0) / wip.length,
+    wipPico: Math.max(...wip),
+    throughputDia: todas.throughput / DIAS_PERIODO,
+    reportadas: todas.totalReportadas,
+    pendientesAlCierre: incidencias.filter((i) => i.estado === 'pendiente').length,
+  }
+}
+
+function promedio(lista: Metricas[]): Metricas {
+  const prom = (f: (m: Metricas) => number | null) => {
+    const v = lista.map(f).filter((x): x is number => x !== null)
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null
+  }
+  return {
+    cycleTime: prom((m) => m.cycleTime),
+    cycleTimeAlta: prom((m) => m.cycleTimeAlta),
+    leadTime: prom((m) => m.leadTime),
+    leadTimeAlta: prom((m) => m.leadTimeAlta),
+    wipPromedio: prom((m) => m.wipPromedio)!,
+    wipPico: prom((m) => m.wipPico)!,
+    throughputDia: prom((m) => m.throughputDia)!,
+    reportadas: prom((m) => m.reportadas)!,
+    pendientesAlCierre: prom((m) => m.pendientesAlCierre)!,
+  }
+}
+
+function correr(escenario: Escenario, semilla: number) {
+  const { llegadas, tecnicos } = escenario.generar(crearAzar(semilla))
+  return simular(llegadas, tecnicos, HORAS)
+}
+
+// ---------- CFD en SVG (mismos colores que el panel del frontend) ----------
+function cfdSvg(puntos: PuntoCFD[], titulo: string): string {
+  const W = 720, H = 300, izq = 44, der = 16, arr = 40, aba = 36
+  const max = Math.max(...puntos.map((p) => p.pendiente + p.en_proceso + p.resuelto), 1)
+  const tope = Math.ceil(max / 10) * 10
+  const x = (k: number) => izq + (k / (puntos.length - 1)) * (W - izq - der)
+  const y = (v: number) => H - aba - (v / tope) * (H - arr - aba)
+  const capas = [
+    { clave: 'resuelto', relleno: '#B8E8D0', trazo: '#5FAE88', etiqueta: 'Resueltas' },
+    { clave: 'en_proceso', relleno: '#BFE0F0', trazo: '#6AAAD0', etiqueta: 'En proceso' },
+    { clave: 'pendiente', relleno: '#F2C4A8', trazo: '#C98763', etiqueta: 'Pendientes' },
+  ] as const
+  const acum = puntos.map(() => 0)
+  const areas = capas.map((c) => {
+    const abajo = acum.slice()
+    puntos.forEach((p, k) => (acum[k]! += p[c.clave]))
+    const arriba = acum.slice()
+    const ida = arriba.map((v, k) => `${x(k).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
+    const vuelta = abajo.map((v, k) => `${x(k).toFixed(1)},${y(v).toFixed(1)}`).reverse().join(' ')
+    return `<polygon points="${ida} ${vuelta}" fill="${c.relleno}" stroke="${c.trazo}" stroke-width="1.5"/>`
+  })
+  const k0 = INICIO_CRISIS / 24
+  const crisis = `<rect x="${x(k0 - 0.5).toFixed(1)}" y="${arr}" width="${(x(puntos.length - 1) - x(k0 - 0.5)).toFixed(1)}" height="${H - arr - aba}" fill="#2B2B2B" opacity="0.05"/>`
+  const ejeY = [0, tope / 2, tope].map((v) => `<text x="${izq - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text><line x1="${izq}" x2="${W - der}" y1="${y(v)}" y2="${y(v)}" stroke="#E5E5E5"/>`)
+  const ejeX = puntos.map((_, k) => `<text x="${x(k)}" y="${H - aba + 18}" text-anchor="middle">${k + 1}</text>`)
+  const leyenda = capas.map((c, k) => `<rect x="${izq + k * 110}" y="12" width="12" height="12" rx="3" fill="${c.relleno}" stroke="${c.trazo}"/><text x="${izq + k * 110 + 18}" y="22">${c.etiqueta}</text>`)
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#2B2B2B">
+<title>${titulo}</title>
+<rect width="${W}" height="${H}" fill="#FFFFFF"/>
+${crisis}
+${ejeY.join('\n')}
+${areas.join('\n')}
+${ejeX.join('\n')}
+<text x="${(izq + W - der) / 2}" y="${H - 4}" text-anchor="middle">Día (la zona sombreada es la semana de la crisis)</text>
+${leyenda.join('\n')}
+<text x="${W - der}" y="22" text-anchor="end" font-weight="bold">${titulo}</text>
+</svg>
+`
+}
+
+// ---------- Reporte ----------
+const f1 = (n: number | null) => (n === null ? '—' : n.toFixed(1).replace('.', ','))
+const h1 = (n: number | null) => (n === null ? '—' : `${f1(n)} h`)
+
+const resultados = ESCENARIOS.map((escenario) => {
+  const metricas = promedio(Array.from({ length: SIMULACIONES }, (_, k) => medir(correr(escenario, k + 1))))
+  const muestra = correr(escenario, 1)
+  const cfd = calcularCfd(muestra.incidencias.map(aKpi), { desde: fecha(0), hasta: fecha(HORAS - 0.01) })
+  return { escenario, metricas, cfd }
+})
+
+mkdirSync(new URL('../docs/escenarios/', import.meta.url), { recursive: true })
+for (const { escenario, cfd } of resultados) {
+  writeFileSync(new URL(`../docs/escenarios/cfd-${escenario.id}.svg`, import.meta.url), cfdSvg(cfd, escenario.nombre))
+}
+
+const fila = ({ escenario: e, metricas: m }: (typeof resultados)[number]) => {
+  const little = (m.throughputDia / 24) * (m.cycleTime ?? 0)
+  return `| ${e.nombre} | ${h1(m.cycleTime)} · alta ${h1(m.cycleTimeAlta)} | ${f1(m.wipPromedio)} promedio · pico ${f1(m.wipPico)} | ${f1(m.throughputDia)} / día | ${f1(little)} | ${h1(m.leadTime)} · alta ${h1(m.leadTimeAlta)} | ${f1(m.pendientesAlCierre)} |`
+}
+const encabezado = `| Situación | Cycle time (todas · alta) | WIP medido | Throughput | WIP por Little (TH × CT) | Lead time (todas · alta) | Pendientes al cierre |
+|---|---|---|---|---|---|---|`
+const de = (situacion: Escenario['situacion'], conSolucion: boolean) => resultados.find((r) => r.escenario.situacion === situacion && r.escenario.conSolucion === conSolucion)!
+const normal = de('normal', false)
+
+const md = `# Situaciones críticas: cycle time, WIP y throughput
+
+Generado con \`npm run escenarios\` el ${diaLima(new Date())}. Cada fila es el **promedio de ${SIMULACIONES} simulaciones** con distintas semillas (el mismo escenario con y sin solución usa exactamente los mismos reportes, para que la comparación sea justa). Los KPIs se calculan con las mismas funciones que el panel del administrador (\`src/domain/kpis.ts\`), sobre la **semana de la crisis** (días 8 a 14).
+
+## Modelo
+
+- Edificio de ~80 departamentos: unos **3 reportes al día** (85 % entre las 7:00 y las 22:00), 20 % de prioridad alta, 50 % media y 30 % baja.
+- **2 técnicos por turnos:** mañana (7:00–15:00) y tarde/guardia (14:00–22:00). Límite de WIP de **${LIMITE_WIP} por técnico**, como en el tablero.
+- La cola se atiende por prioridad y luego por antigüedad (el orden del tablero). Una incidencia en proceso primero **espera** (coordinar con el vecino, repuestos o que vuelva la luz) sin ocupar al técnico, y luego necesita **trabajo**: el técnico atiende una a la vez.
+- **Cycle time** = fecha de resolución − fecha de inicio; **lead time** = fecha de resolución − fecha de reporte (promedios de las resueltas en la semana). **Throughput** = resueltas por día. **WIP** = incidencias en proceso, promediado en el tiempo.
+- **Ley de Little:** WIP = throughput × cycle time (con el throughput en incidencias por hora). Si el WIP calculado así se parece al medido, el sistema está estable; si no, se está acumulando trabajo.
+
+## Resultados (TF 5.2)
+
+${encabezado}
+${[normal, de('lluvia', false), de('ausente', false), de('falla', false)].map(fila).join('\n')}
+
+## Con la solución propuesta (TF 5.3)
+
+${encabezado}
+${(['lluvia', 'ausente', 'falla'] as const).flatMap((s) => [fila(de(s, false)), fila(de(s, true))]).join('\n')}
+
+## Detalle de cada escenario
+
+${resultados
+  .map(
+    ({ escenario: e, metricas: m }) => `### ${e.nombre}
+
+${e.contexto}${e.solucion ? `\n\n**Solución:** ${e.solucion}` : ''}
+
+- Reportes en la semana: ${f1(m.reportadas)} · resueltas por día: ${f1(m.throughputDia)} · pendientes al cierre: ${f1(m.pendientesAlCierre)}
+- Cycle time: ${h1(m.cycleTime)} (alta: ${h1(m.cycleTimeAlta)}, meta del Objetivo 2: < 48 h) · lead time: ${h1(m.leadTime)} (alta: ${h1(m.leadTimeAlta)})
+- WIP: ${f1(m.wipPromedio)} en promedio, pico de ${f1(m.wipPico)} (tope del tablero: ${LIMITE_WIP} por técnico)
+
+![CFD ${e.nombre}](escenarios/cfd-${e.id}.svg)
+`,
+  )
+  .join('\n')}
+`
+writeFileSync(new URL('../docs/ESCENARIOS_CRITICOS.md', import.meta.url), md)
+console.log(`Listo: docs/ESCENARIOS_CRITICOS.md y ${resultados.length} CFD en docs/escenarios/ (${SIMULACIONES} simulaciones por escenario)`)
+for (const { escenario: e, metricas: m } of resultados) {
+  console.log(`${e.id.padEnd(17)} CT ${h1(m.cycleTime).padStart(7)}  CT alta ${h1(m.cycleTimeAlta).padStart(7)}  WIP ${f1(m.wipPromedio)}/${f1(m.wipPico)}  TH ${f1(m.throughputDia)}/d  LT ${h1(m.leadTime).padStart(7)}  LT alta ${h1(m.leadTimeAlta).padStart(7)}  pend ${f1(m.pendientesAlCierre)}`)
+}
