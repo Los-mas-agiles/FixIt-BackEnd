@@ -13,6 +13,7 @@ Proyecto del curso de **Ágiles (1ASI570)** — UPC, Ingeniería de Software, 20
 | [`docs/PLAN_FASES.md`](docs/PLAN_FASES.md) | Fases de desarrollo, convenciones y Definition of Done |
 | [`docs/EVALUACION_IA.md`](docs/EVALUACION_IA.md) | Precisión y latencia de cada modelo de IA (30 casos etiquetados) |
 | [`docs/ESCENARIOS_CRITICOS.md`](docs/ESCENARIOS_CRITICOS.md) | Cycle time, WIP y throughput en 3 situaciones críticas, con y sin solución (TF 5.2 y 5.3) |
+| [`docs/GUIA_PILOTO.md`](docs/GUIA_PILOTO.md) | Cómo preparar, conducir y cerrar el piloto de 2 semanas (Fase 7) |
 
 ## Stack
 
@@ -74,6 +75,9 @@ npm run dev                 # http://localhost:3000/api/health
 | `npm run db:studio` | Explorador visual de la base de datos |
 | `npm run ia:evaluar` | Mide la precisión de la IA con 30 casos etiquetados → `docs/EVALUACION_IA.md` |
 | `npm run escenarios` | Simula las 3 situaciones críticas del TF (lluvia fuerte, técnico ausente, falla eléctrica) con y sin solución → `docs/ESCENARIOS_CRITICOS.md` |
+| `npm run piloto:crear` | Crea el edificio del piloto y su administrador (contraseña temporal) — ver `docs/GUIA_PILOTO.md` |
+| `npm run piloto:reporte` | Resultados del piloto para el TF (objetivos, KPIs, adopción, CFD) → `docs/RESULTADOS_PILOTO.md` |
+| `npm run db:respaldo` | Respaldo de la BD en JSON (y de las fotos con `--fotos`) en `respaldos/`, que nunca se sube al repo |
 | `npm run db:generate` | Regenera el cliente de Prisma (se hace solo en `npm install`) |
 
 ## Estructura

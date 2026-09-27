@@ -11,5 +11,8 @@ src/generated/
 .env.*
 !.env.example
 
+# Respaldos de la BD (incluyen hashes de contraseñas y datos del piloto): NUNCA se suben
+respaldos/
+
 *.log
 .DS_Store

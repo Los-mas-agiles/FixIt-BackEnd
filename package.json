@@ -20,7 +20,10 @@
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "ia:evaluar": "tsx scripts/evaluar-ia.ts",
-    "escenarios": "tsx scripts/escenarios-criticos.ts"
+    "escenarios": "tsx scripts/escenarios-criticos.ts",
+    "piloto:crear": "tsx scripts/piloto-crear.ts",
+    "piloto:reporte": "tsx scripts/piloto-reporte.ts",
+    "db:respaldo": "tsx scripts/db-respaldo.ts"
   },
   "repository": {
     "type": "git",

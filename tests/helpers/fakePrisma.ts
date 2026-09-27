@@ -230,6 +230,12 @@ export const prisma = {
         .sort((a, b) => a.nombre.localeCompare(b.nombre))
         .map(conEdificio)
     },
+    async update({ where, data }: { where: { id: string }; data: Partial<UsuarioFake> }) {
+      const usuario = usuarios.find((u) => u.id === where.id)
+      if (!usuario) throw Object.assign(new Error('Record not found'), { code: 'P2025' })
+      Object.assign(usuario, data)
+      return conEdificio(usuario)
+    },
     async create({ data }: { data: Omit<UsuarioFake, 'id' | 'activo'> }) {
       if (usuarios.some((u) => u.email === data.email)) {
         throw Object.assign(new Error('Unique constraint failed'), { code: 'P2002' })

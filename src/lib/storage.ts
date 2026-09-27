@@ -55,3 +55,10 @@ export async function urlsFirmadas(paths: string[]): Promise<Map<string, string>
   }
   return urls
 }
+
+/** Descarga una foto (la usa el script de respaldo de la BD). */
+export async function descargarFoto(path: string): Promise<Buffer> {
+  const { data, error } = await bucket().download(path)
+  if (error || !data) throw new Error(`No se pudo descargar la foto ${path}: ${error?.message ?? 'sin datos'}`)
+  return Buffer.from(await data.arrayBuffer())
+}

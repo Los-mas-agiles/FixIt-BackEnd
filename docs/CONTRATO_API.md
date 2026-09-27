@@ -131,19 +131,25 @@ Toda consulta queda **limitada automáticamente al edificio del usuario** (sale 
 |---|---|---|---|---|
 | POST | `/auth/login` | público | `{ email, password }` | `{ token: string, usuario: Usuario }` |
 | GET | `/auth/me` | R M A | — | `Usuario` |
+| PATCH | `/auth/password` | R M A | `{ actual, nueva }` | `{ ok: true }` |
 
 - Credenciales incorrectas → `401 NO_AUTENTICADO` con mensaje "Correo o contraseña incorrectos".
 - El token dura 7 días. No hay refresh: al vencer, `401` y se vuelve a loguear.
+- **Cambiar la contraseña propia:** `nueva` mínimo 8 caracteres y distinta de la actual. Si `actual` no coincide → `400 VALIDACION` ("La contraseña actual no es correcta"), **no** `401`, para que el frontend muestre el error en el formulario sin cerrar la sesión. La sesión sigue abierta después del cambio.
 
 ### Usuarios (administración)
 
 | Método | Ruta | Roles | Body / Query | Respuesta |
 |---|---|---|---|---|
-| GET | `/usuarios` | A | `?rol=mantenimiento` (opcional) | `Usuario[]` |
+| GET | `/usuarios` | A | `?rol=mantenimiento` y `?inactivos=true` (opcionales) | `Usuario[]` |
 | POST | `/usuarios` | A | `{ nombre, email, password, rol }` | `Usuario` (201) |
+| PATCH | `/usuarios/:id` | A | `{ activo?: boolean, password?: string }` (al menos uno) | `Usuario` |
 
 - `password` mínimo 8 caracteres. Email duplicado → `400 VALIDACION`.
 - El usuario se crea en el mismo edificio que el admin.
+- `GET /usuarios` lista solo los activos; con `?inactivos=true`, solo los desactivados (para poder reactivarlos).
+- **`PATCH /usuarios/:id`:** `activo: false` desactiva la cuenta (no puede entrar, su sesión abierta deja de valer al instante y se borran sus suscripciones push); `activo: true` la reactiva. `password` le asigna una contraseña temporal (cuando la olvidó), que el usuario luego cambia con `PATCH /auth/password`. Un usuario de otro edificio → `404`. El admin no puede desactivarse a sí mismo → `400 VALIDACION`.
+- Si se desactiva a un técnico con incidencias en proceso, siguen asignadas a él: el admin debe reasignarlas desde el tablero.
 
 ### Incidencias (HU1, HU2, HU3)
 
