@@ -1,8 +1,8 @@
 import { Router } from 'express'
-import { z } from 'zod'
 import { requireAuth, usuarioActual } from '../../middleware/auth.js'
 import {
   borrarSuscripcion,
+  borrarSuscripcionSchema,
   clavePublicaVapid,
   guardarSuscripcion,
   listarNotificaciones,
@@ -42,7 +42,7 @@ pushRouter.post('/suscripciones', async (req, res) => {
 })
 
 pushRouter.delete('/suscripciones', async (req, res) => {
-  const { endpoint } = z.object({ endpoint: z.string().min(1).max(1000) }).parse(req.body)
+  const { endpoint } = borrarSuscripcionSchema.parse(req.body)
   await borrarSuscripcion(usuarioActual(req), endpoint)
   res.json({ ok: true })
 })

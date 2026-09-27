@@ -7,6 +7,7 @@ export const emailSchema = z
   .trim()
   .toLowerCase()
   .pipe(z.email('El correo no es válido'))
+  .meta({ format: 'email' }) // para la documentación: Zod solo describe la entrada del pipe (un string)
 
 // bcrypt solo considera los primeros 72 bytes
 export const passwordSchema = z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(72)

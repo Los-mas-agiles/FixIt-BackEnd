@@ -4,6 +4,7 @@ import express from 'express'
 import cors from 'cors'
 import { env } from './config/env.js'
 import { crearValidadorOrigen } from './domain/cors.js'
+import { docsRouter } from './docs/routes.js'
 import { errorHandler, notFound } from './middleware/errorHandler.js'
 import { securityHeaders } from './middleware/securityHeaders.js'
 import { authRouter } from './modules/auth/routes.js'
@@ -29,6 +30,7 @@ api.use('/incidencias', incidenciasRouter)
 api.use('/kpis', kpisRouter)
 api.use('/notificaciones', notificacionesRouter)
 api.use('/push', pushRouter)
+api.use(docsRouter) // /api/docs (Swagger UI) y /api/openapi.json
 app.use('/api', api)
 
 app.use(notFound)

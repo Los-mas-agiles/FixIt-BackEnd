@@ -8,6 +8,7 @@ Proyecto del curso de **Ágiles (1ASI570)** — UPC, Ingeniería de Software, 20
 
 | Documento | Contenido |
 |---|---|
+| [**Swagger / OpenAPI**](https://fix-it-back-end.vercel.app/api/docs) | Documentación interactiva: probar cada endpoint desde el navegador (`/api/docs`; la especificación en `/api/openapi.json`) |
 | [`docs/CONTRATO_API.md`](docs/CONTRATO_API.md) | **Contrato con el frontend**: tipos, endpoints, errores y cuentas de demo. Fuente de verdad. |
 | [`docs/GUIA_BACKEND.md`](docs/GUIA_BACKEND.md) | Guía técnica: arquitectura, modelo de datos, reglas de negocio, IA, KPIs |
 | [`docs/PLAN_FASES.md`](docs/PLAN_FASES.md) | Fases de desarrollo, convenciones y Definition of Done |

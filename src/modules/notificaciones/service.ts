@@ -66,6 +66,8 @@ export const suscripcionSchema = z.object({
   }),
 })
 
+export const borrarSuscripcionSchema = z.object({ endpoint: z.string().min(1).max(1000) })
+
 export async function guardarSuscripcion(usuario: UsuarioAutenticado, datos: z.infer<typeof suscripcionSchema>): Promise<void> {
   // Si el endpoint ya existía (ej. otro usuario usó el mismo navegador), pasa a ser del usuario actual
   await prisma.suscripcionPush.upsert({

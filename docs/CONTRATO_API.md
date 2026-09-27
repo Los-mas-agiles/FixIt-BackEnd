@@ -8,6 +8,7 @@ Si algo tiene que cambiar, **primero se cambia aquí** (con PR en el repo de bac
 - **Formato:** JSON (salvo la creación de incidencias, que es `multipart/form-data`)
 - **Fechas:** siempre strings ISO 8601 en UTC (`"2026-10-05T14:30:00.000Z"`). El frontend las formatea a hora de Lima.
 - **IDs:** strings UUID.
+- **Documentación interactiva (Swagger):** [https://fix-it-back-end.vercel.app/api/docs](https://fix-it-back-end.vercel.app/api/docs): cada endpoint se puede probar desde el navegador (login → **Authorize** con el token). Se genera desde los mismos esquemas que validan la API.
 - **Autenticación:** header `Authorization: Bearer <token>` en todas las rutas excepto `POST /auth/login` y `GET /health`.
 
 ---
